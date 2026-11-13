@@ -12,7 +12,7 @@ cd reference/python
 pip install -e ".[dev]"
 python examples/shipments.py     # the worked example from docs/example.md
 pytest                         # core, fault-injection and durable-journal tests; adapter tests run if the SDKs are installed
-pip install -e ".[adk,langgraph,a2a]" && pytest
+pip install -e ".[adk,langgraph,a2a,mcp]" && pytest
 ```
 
 ## Status
@@ -27,6 +27,7 @@ pip install -e ".[adk,langgraph,a2a]" && pytest
 | LangGraph adapter | Reference | Runs as a node in a compiled graph |
 | Google ADK adapter | Experimental | Tool declaration and a direct tool call. Not run inside a live agent with a model |
 | A2A binding | Experimental | Agent card and executor against the SDK types. Not run behind a server |
+| MCP binding | Experimental | One tool per capability, hints from the contract. Tested through an MCP client over memory streams, against the shipments example. Not run behind a transport. `failed`, `rejected` and `unknown` come back as error results, so a client that retries every error can retry an `unknown`; the reply says it is not retryable |
 
 Experimental parts may change or be removed without notice. Do not copy them into production code without testing them against your SDK version.
 

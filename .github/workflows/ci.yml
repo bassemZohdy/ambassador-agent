@@ -37,7 +37,7 @@ jobs:
       # The platform SDKs need a newer Python than the dependency-free core does.
       - name: Install platform SDKs
         if: matrix.python == '3.13'
-        run: pip install -e ".[adk,langgraph,a2a]"
+        run: pip install -e ".[adk,langgraph,a2a,mcp]"
       - name: Adapter tests
         if: matrix.python == '3.13'
         run: pytest -q

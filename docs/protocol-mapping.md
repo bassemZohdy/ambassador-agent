@@ -70,5 +70,5 @@ This extension is a proposal. It has not been published or registered anywhere.
 |---|---|---|
 | Message queue | Queued tasks, natural buffering and redelivery | Discovery; needs a separate catalogue |
 | Plain HTTP API | Simple request and reply | Long-running tasks and subscriptions need polling or webhooks |
-| MCP tool | Exposing capabilities to a single agent | Task lifecycle; suits short tasks only |
+| MCP tool | Exposing capabilities to a single agent | Task lifecycle; suits short tasks only. `failed`, `rejected` and `unknown` all arrive as error results, so `unknown` has the same weakness as in A2A. The [reference](../reference/README.md) has an experimental binding |
 | Platform-native call (agent framework tool or node) | Core agents on the same platform | Nothing, within that platform |

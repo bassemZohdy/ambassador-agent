@@ -72,3 +72,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-14 · go on · FEAT-004 recorded as done with docs/example-group.md
 - 2026-11-14 · go on · FEAT-005 recorded as done with docs/faq.md
 - 2026-11-14 · complete all tasks · FEAT-002 recorded as done: pattern.md links every specification page; the pattern stays at version 0.2, so its title no longer says v1.0
+- 2026-11-14 · complete all tasks · TASK-008 recorded as done with an experimental MCP binding in the reference
