@@ -11,7 +11,16 @@ from .model import ActionRequest, ActionResult, BoundaryError, Capability, Notic
 
 
 class TransientError(Exception):
-    """The external system failed in a way that may succeed on retry."""
+    """The external system failed in a way that may succeed on retry.
+
+    `may_have_executed` says whether the action could have taken effect anyway. A timeout after
+    the request was sent could have; a refused connection could not. When in doubt leave it True:
+    the ambassador then reconciles before it retries or offers another channel.
+    """
+
+    def __init__(self, message: str = "", *, may_have_executed: bool = True):
+        super().__init__(message)
+        self.may_have_executed = may_have_executed
 
 
 class PermanentError(Exception):
@@ -48,6 +57,9 @@ class Journal(Protocol):
 
     `begin` is called before the external system is touched and `finish` after. An intent
     that was begun and never finished is an action whose outcome is unknown.
+
+    A finished intent whose outcome is "unknown" stays listed by `unresolved` until `resolve`
+    is called with what was found out. Both are the manual-exception path.
     """
 
     async def begin(self, intent: Mapping[str, Any]) -> str: ...
@@ -61,6 +73,10 @@ class Journal(Protocol):
     async def recall(self, idempotency_key: str) -> ActionResult | None: ...
 
     async def remember(self, idempotency_key: str, result: ActionResult) -> None: ...
+
+    async def unresolved(self) -> list[Mapping[str, Any]]: ...
+
+    async def resolve(self, operation_id: str, result: ActionResult, by: str, note: str) -> None: ...
 
 
 class Sanitizer(Protocol):

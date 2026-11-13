@@ -15,20 +15,24 @@ class Intelligence(str, Enum):
 
 
 class Outcome(str, Enum):
-    """Every task ends in exactly one of these. A task never pauses."""
+    """Every task ends in exactly one of these. A task never pauses.
 
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"  # the external system could not complete the action
+    An outcome says only what is known about the action. What to do next (a fallback channel,
+    a retry hint, who must reconcile) travels beside it and never replaces it.
+    """
+
+    SUCCEEDED = "succeeded"  # the action was carried out
+    FAILED = "failed"  # known not to have been carried out
     REJECTED = "rejected"  # refused before the boundary was crossed
-    DEFERRED = "deferred"  # not done here; a fallback channel is offered
+    UNKNOWN = "unknown"  # may or may not have been carried out; it must be reconciled
 
 
 class Unknown(str, Enum):
     """How a capability reconciles an action whose outcome was never recorded."""
 
-    VERIFY = "verify"  # ask the external system whether it received the action
-    RESEND = "resend"  # safe because the external action is itself idempotent
-    STOP = "stop"  # report failed with the reason "outcome unknown"
+    VERIFY = "verify"  # ask the external system whether it received the operation id
+    RESEND = "resend"  # safe only if the external system ignores a repeated operation id
+    STOP = "stop"  # the external system can do neither: report unknown, a person resolves it
 
 
 class Compensation(str, Enum):
@@ -84,6 +88,7 @@ class ActionResult:
     fallback: Fallback | None = None
     attempts: int = 0
     replayed: bool = False  # True when served from the idempotency record
+    operation_id: str | None = None  # the identifier the external system saw; the handle for reconciling
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"outcome": self.outcome.value, "data": dict(self.data), "attempts": self.attempts}
@@ -95,6 +100,8 @@ class ActionResult:
             out["fallback"] = {"channel": self.fallback.channel, "instructions": self.fallback.instructions}
         if self.replayed:
             out["replayed"] = True
+        if self.operation_id:
+            out["operation_id"] = self.operation_id
         return out
 
 

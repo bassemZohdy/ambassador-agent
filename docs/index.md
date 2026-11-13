@@ -17,7 +17,7 @@ The Ambassador Agent pattern gives every external boundary a single owner.
 | Part | Statement |
 |---|---|
 | One concept | The ambassador: one boundary, one ambassador, one named human owner |
-| One interaction model | The core opens tasks. Each task ends as `succeeded`, `failed`, `rejected` or `deferred`. None pauses |
+| One interaction model | The core opens tasks. Each task ends as `succeeded`, `failed`, `rejected` or `unknown`. None pauses |
 | One reliability rule | Every action is journalled before it happens, so the ambassador recovers on its own |
 | Seven duties | Contract, identity, policy, admission, journal, quarantine, fallback |
 
@@ -33,7 +33,7 @@ Only the core opens a task. The ambassador decides whether to admit it, records 
 
 ### Recovery
 
-If the ambassador stops between sending and recording, the outcome is unknown. On restart it finds the open intent and follows what the capability declares.
+If the ambassador stops between sending and recording, the outcome is unknown. On restart it finds the open intent and follows what the capability declares: ask the external system, send the same operation id again, or stop and hand it to the owner. A timeout is treated the same way: it is not a "no".
 
 ![After a restart the ambassador reads the journal for intents with no outcome, then verifies with the external system, resends, or stops and reports the outcome as unknown, and records the result.](diagrams/recovery.svg)
 
@@ -53,7 +53,7 @@ An ambassador never starts an exchange with the core. The core opens a subscript
 | Capability | One thing the core may ask of a boundary, named in the core's language |
 | Task | One request for one capability, for one principal. Only the core opens it |
 | Principal | Who the task is for. The ambassador acts for the principal, never as itself |
-| Outcome | How a task ends: succeeded, failed, rejected or deferred |
+| Outcome | What is known about the action: succeeded, failed (known not done), rejected, or unknown (may have been done) |
 | Journal | The durable record of every crossing: intent before, outcome after |
 | Admission | The duty to limit work: one task at a time per resource, a bounded wait, refusal when full |
 | Notice | A fact from the external system, translated and sanitised, sent on a subscription |
@@ -79,9 +79,9 @@ A small reference implementation in Python lives in the repository's `reference/
 This is version 0.2 of a proposed pattern. It has no documented use in production yet, and the following questions are open:
 
 1. **Redundancy and admission.** An ambassador should be run redundantly, and it should run one task at a time per resource. With more than one replica that needs a shared lock or partitioning, which the pattern does not yet describe.
-2. **The limit of autonomy.** When an outcome is unknown and the external system cannot be asked, the ambassador stops and reports. Someone must then resolve it.
+2. **The limit of autonomy.** When an outcome is unknown and the external system cannot be asked, the ambassador reports `unknown`, holds repeats and lists the exception. A person must resolve it. How long it may be held, who is alerted, and whether a task type may set a time limit before escalating are not yet described.
 3. **Policy.** With no person in the loop, policy is the only safeguard before an irreversible action. The pattern does not yet say how policy is defined or reviewed.
-4. **`deferred` in A2A.** It maps to `failed` with the fallback in extension data. A client that ignores the extension loses the fallback.
+4. **`unknown` in A2A.** A2A has no state for "may have happened". It maps to `failed` with the outcome in extension data, so a client that ignores the extension may read it as a plain failure. The ambassador holds repeats of the same task, but a client that retries under a new key defeats that.
 
 Counter-examples and known uses are the most useful contributions. The repository's issue templates ask for both.
 

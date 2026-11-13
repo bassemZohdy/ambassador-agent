@@ -67,9 +67,9 @@ These are newer, and several are products as much as patterns. The pattern takes
 The pattern makes five design choices. They are choices to agree or disagree with, not claims to be first:
 
 1. **Accountability as the organising idea.** One boundary, one agent, one named human owner, one journal.
-2. **Full autonomy with a fixed set of outcomes.** A task never pauses, and always ends as succeeded, failed, rejected or deferred.
+2. **Full autonomy with a fixed set of outcomes.** A task never pauses, and always ends as succeeded, failed, rejected or unknown. What to do next travels beside the outcome and never replaces it.
 3. **One direction of initiation.** Only the core opens a task; news from outside arrives as notices on a subscription the core opened.
-4. **Reliability from one rule.** Record the intent before the action, and reconcile what is unknown.
+4. **Reliability from one rule.** Record the intent before the action, and reconcile what is unknown. It claims no exactly-once effect: it says which of three delivery classes a capability has.
 5. **A small definition.** One concept, one interaction model, one reliability rule and seven duties. How an ambassador is run is kept out of it.
 
 We have not found a single source that combines these five, but our search was limited. If you know one, please open an issue. It belongs on this page.

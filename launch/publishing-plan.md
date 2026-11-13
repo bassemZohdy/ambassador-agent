@@ -33,7 +33,7 @@ The animated SVG diagrams play on GitHub and on the Pages site. Most publishing 
 |---|---|---|---|
 | 1 | LinkedIn | The post from `posts.md`, with the architecture diagram | Reply to every comment in the first day |
 | 1 | X, Mastodon, Bluesky | The short posts, one a day | |
-| 2 | A2A community (discussions in the `a2aproject/A2A` repository) | A question, not an announcement: "is this extension the right way to express `deferred` and compensation?" | Maintainers respond to concrete protocol questions, not promotion |
+| 2 | A2A community (discussions in the `a2aproject/A2A` repository) | A question, not an announcement: "is this extension the right way to express `unknown`, a fallback beside an outcome, and compensation?" | Maintainers respond to concrete protocol questions, not promotion |
 | 2 | Communities of the agent platforms you used (Google ADK, LangGraph) | The reference adapter and what the pattern asks of a platform | Post as a user of the platform |
 | 3 | Hacker News | Submit the guide URL with a plain title | No superlatives in the title. Be present for the first hours |
 | 3 | Reddit: architecture and AI-agent communities | A short summary and the link | Read each community's self-promotion rule first. Many require participation before posting |

@@ -1,14 +1,13 @@
 <!-- Hashnode copy of article.md: same text, absolute links. Title goes in the title field: "Who answers for it? The Ambassador Agent pattern". Tags: ai-agents, software-architecture, design-patterns. -->
 
-
 *A design pattern for agents that act on systems you do not own.*
 
 ## Key takeaways
 
 - Tool protocols tell an agent how to call an external system. They do not say who is responsible once it does. The Ambassador Agent pattern gives every external boundary one accountable, autonomous owner.
 - The definition is small: one concept, one interaction model, one reliability rule and seven duties.
-- Only the core system opens a task, a task never pauses, and it always ends in one of four outcomes: succeeded, failed, rejected or deferred.
-- One rule makes the ambassador recoverable without a person: record the intent before the action, and the outcome after.
+- Only the core system opens a task, a task never pauses, and it always ends in one of four outcomes: succeeded, failed, rejected or unknown.
+- One rule keeps the ambassador honest about what it does not know: record the intent before the action, and the outcome after. It does not promise exactly-once effects. It says which of three delivery classes each capability has.
 - The pattern borrows from the outbox, the saga and the actor model, uses A2A as its reference protocol, and adopts none of them as is. It is a proposal with open questions, listed at the end.
 
 ## The problem
@@ -37,7 +36,7 @@ The whole definition fits in four lines:
 | Part | Statement |
 |---|---|
 | One concept | The ambassador: one boundary, one ambassador, one named human owner |
-| One interaction model | The core opens tasks. Each task ends as succeeded, failed, rejected or deferred |
+| One interaction model | The core opens tasks. Each task ends as succeeded, failed, rejected or unknown |
 | One reliability rule | Every action is journalled before it happens |
 | Seven duties | Contract, identity, policy, admission, journal, quarantine, fallback |
 
@@ -53,7 +52,9 @@ The core system talks to an ambassador through tasks. Five statements define the
 
 **A task never pauses.** The ambassador is fully autonomous. When it cannot decide, it does not ask a person or open a dialogue with the core. It ends the task.
 
-**Four outcomes, always.** `succeeded`, `failed`, `rejected` (refused before the boundary was crossed) or `deferred`. The last one matters most: it means "not done here, and this is the other channel that can finish it". An outage becomes directions, not an error. Core agents never interpret a vendor error.
+**Four outcomes, always.** An outcome says only what is known about the action. `succeeded`: it was carried out. `failed`: it is known not to have been. `rejected`: refused before the boundary was crossed. `unknown`: it may or may not have been, and it must be reconciled. A timeout after a request was sent is `unknown`, never `failed`. Core agents never interpret a vendor error.
+
+**What to do next travels beside the outcome, never in place of it.** A result can carry a fallback channel, a retry hint or the operation id to reconcile by. They are instructions, and the outcome stays a fact. A fallback channel is attached only when the action is known not to have been done. Pointing a customer to the courier's website after a timeout would risk a second booking, so it never happens while the outcome is unknown.
 
 **News from outside arrives as a notice.** The core opens a long-lived subscription, and the ambassador sends translated, sanitised notices into it. A notice is a fact, never a command. If nobody is subscribed, the ambassador records the event and does not hold it; keeping undelivered events is the messaging layer's job.
 
@@ -63,11 +64,29 @@ The core system talks to an ambassador through tasks. Five statements define the
 
 **Before an ambassador acts on the external system, it records its intent. After, it records the outcome.**
 
+Between "sent" and "recorded" there is always a window in which the action may have taken effect and the ambassador cannot tell. The rule does not close that window. It makes sure the ambassador always knows it is in it, and never reports a guess as a fact.
+
 - An intent with an outcome is finished. A repeated task with the same idempotency key gets the recorded outcome back, and the external system is not called again.
 - An intent with no outcome means the ambassador stopped mid-action. The outcome is unknown, and on restart it must be reconciled.
-- Each capability declares how: **verify** (ask the external system whether it received the action), **resend** (safe because the external action is itself idempotent) or **stop** (report failure with the reason "outcome unknown").
+- A timeout is the same situation as a crash. Before it retries or offers another channel, the ambassador settles what may have happened. A refused connection that never carried the request is different: nothing was sent, so it can be retried freely.
 
 ![After a restart the ambassador reads the journal for intents with no outcome, then verifies with the external system, resends, or stops and reports the outcome as unknown, and records the result.](https://raw.githubusercontent.com/bassemZohdy/ambassador-agent/main/docs/diagrams/recovery.svg)
+
+### What the journal guarantees, and what it does not
+
+Across a boundary the ambassador does not control, exactly-once effects are impossible in general. Each capability declares which of three delivery classes it has:
+
+| Class | Holds when | Declared as | After an ambiguous failure |
+|---|---|---|---|
+| Effectively once | The external system ignores a repeated operation id, or can be asked about it | `verify` or `resend` | Ask, or send the same operation id again. At most one effect |
+| At least once | The external action is naturally repeatable, or a duplicate is harmless | `resend`, chosen knowingly | Send again. A duplicate is possible and accepted |
+| Unrecoverable unknown | The external system can neither deduplicate nor be asked | `stop` | Report `unknown`, hold repeats, hand it to the owner |
+
+Every task has an **operation id**: its idempotency key, or one the ambassador makes. It is journalled with the intent and sent to the external system as its own idempotency key or client reference, the same on every retry, resend and recovery. That is what lets the other side deduplicate, or be asked. `resend` is only effectively-once if the other side deduplicates; otherwise it quietly means at-least-once.
+
+Verification is only as strong as the external system's consistency, because "no record" from a system that is slow to show its own writes is weaker than it looks. A capability that cannot rely on it should declare `stop`.
+
+**An unknown outcome is an exception for a person.** The task ends as `unknown` with its operation id, and no other channel is offered. A repeat of the task gets `unknown` back and is not sent again. The ambassador lists its open exceptions for the named owner, who finds out from the external system's own records and records `succeeded` or `failed`, with their name and a note. A `failed` answer is the first moment another channel may be offered.
 
 A capability with several steps extends the same journal to every step, so a restart resumes at the step that was interrupted. That is durable execution; the single-step journal is its smallest form. The journal is also the audit record: who asked, for whom, what was sent and what came back.
 
@@ -99,9 +118,9 @@ Limits per caller and per cost usually also sit in a gateway in front. The two c
 | Declaration | Values | Purpose |
 |---|---|---|
 | Resource | A key such as an order number | Tasks for the same key run one at a time |
-| Unknown outcome | Verify, resend, stop | How recovery proceeds after a crash |
+| Delivery class | Verify, resend, stop | How an unknown outcome is settled, after a crash or a timeout |
 | Compensation | Compensable, partly, not | Lets the core plan an action that spans several boundaries |
-| Fallback | A channel and instructions | What `deferred` points to |
+| Fallback | A channel and instructions | Offered beside `failed`, never beside `unknown` |
 
 Compensation is not undo. A refund after a charge is "partly"; a delivered message is "not". The core orchestrates an action across boundaries, and each ambassador is a participant. A multi-step capability inside one boundary is the ambassador's own responsibility.
 
@@ -123,12 +142,14 @@ An online shop has a core assistant that helps customers. The Courier is an exte
 |---|---|
 | Normal booking | Policy and admission pass, the intent is recorded, the vendor request is sent for customer 77, the outcome is recorded, and the assistant gets `succeeded` with no vendor code in sight |
 | The model repeats itself | Same idempotency key: the recorded outcome is returned and the Courier is not called again |
-| Outage | After retries the task ends as `deferred`, with instructions to book on the courier's own website |
+| Outage | Connections are refused, so nothing was sent. After retries the task ends as `failed`, with instructions to book on the courier's own website |
+| A lost reply | The Courier booked it and the reply timed out. The ambassador asks the Courier about the operation id, finds the booking and records `succeeded`. Retrying or using the website would have booked twice |
+| A lost reply, nothing to ask | The capability declared `stop`. The task ends as `unknown`, with no other channel offered. The owner finds the booking in the Courier's portal and records it |
 | A runaway caller | Ten tasks a second are released, a bounded number wait, the rest are `rejected` with a retry hint |
 | A crash mid-action | On restart the open intent is verified with the Courier and recorded as `succeeded`. Nothing is sent twice |
 | A hostile remark | A status event containing "ignore previous instructions" becomes a sanitised notice that states a fact |
 
-When the Courier later starts returning vague errors, the team adds a small, fast model that classifies each failure as retry, defer or fail. Callers notice nothing.
+When the Courier later starts returning vague errors, the team adds a small, fast model that classifies each failure as retry, fallback or fail. It cannot override the delivery rule: a timeout on a booking is still settled before anything is retried. Callers notice nothing.
 
 ## Binding it to a protocol
 
@@ -140,7 +161,7 @@ The pattern defines tasks abstractly, and a protocol carries them. A2A is the re
 | Task: waiting, working | `submitted`, `working` | Direct |
 | Succeeded, failed, rejected | `completed`, `failed`, `rejected` | Direct |
 | Subscription and notices | Streaming or push notifications on a task the core opened | Direct |
-| `deferred`, compensation, unknown-outcome policy, retry hint | None | A proposed extension |
+| `unknown`, fallback beside an outcome, operation id, compensation, delivery class, retry hint | None | A proposed extension |
 | Admission, acting for a principal, journal, quarantine | None | The ambassador's own duties |
 
 The right-hand column is the clearest statement of what the pattern adds. A2A's two pausing states, `input-required` and `auth-required`, are not used, because an ambassador's tasks do not pause.
@@ -179,9 +200,9 @@ Use the pattern when at least two of these hold: several core agents use the sys
 This is version 0.2 of a proposal. It has no documented use in production yet.
 
 1. **Redundancy and admission.** One task at a time per resource, across several replicas, needs a shared lock or partitioning. The pattern does not yet describe it.
-2. **The limit of autonomy.** When an outcome is unknown and the external system cannot be asked, the ambassador stops and reports, and someone must resolve it.
+2. **The limit of autonomy.** When an outcome is unknown and the external system cannot be asked, the ambassador reports `unknown`, holds repeats and lists the exception, and a person must resolve it. How long it may be held, who is alerted, and whether a task type may set a time limit before escalating are not yet described.
 3. **Policy.** The pattern does not yet say how policy is defined or reviewed.
-4. **`deferred` in A2A.** It maps to `failed` with the fallback in extension data, so a client that ignores the extension loses the fallback.
+4. **`unknown` in A2A.** A2A has no state for "may have happened". It maps to `failed` with the outcome in extension data, so a client that ignores the extension may read a plain failure and retry. The ambassador holds repeats of the same task, but a client that retries under a new key defeats that.
 
 ## Read it and break it
 

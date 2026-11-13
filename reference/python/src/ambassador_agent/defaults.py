@@ -5,7 +5,7 @@ import re
 import time
 from typing import Any, Mapping
 
-from .model import ActionRequest, ActionResult, Capability, Notice, Principal
+from .model import ActionRequest, ActionResult, Capability, Notice, Outcome, Principal
 
 
 class StaticCredentials:
@@ -35,6 +35,7 @@ class InMemoryJournal:
         self.entries: list[dict[str, Any]] = []
         self._open: dict[str, dict[str, Any]] = {}
         self._results: dict[str, ActionResult] = {}
+        self._unresolved: dict[str, dict[str, Any]] = {}
         self._sequence = 0
 
     async def begin(self, intent: Mapping[str, Any]) -> str:
@@ -46,8 +47,10 @@ class InMemoryJournal:
         return intent_id
 
     async def finish(self, intent_id: str, outcome: Mapping[str, Any]) -> None:
-        self._open.pop(intent_id, None)
+        intent = self._open.pop(intent_id, None)
         self.entries.append({**outcome, "kind": "outcome", "intent_id": intent_id, "at": time.time()})
+        if outcome.get("outcome") == "unknown" and intent is not None:
+            self._unresolved[intent["operation_id"]] = {**intent, **outcome}
 
     async def unfinished(self) -> list[Mapping[str, Any]]:
         return list(self._open.values())
@@ -60,6 +63,21 @@ class InMemoryJournal:
 
     async def remember(self, idempotency_key: str, result: ActionResult) -> None:
         self._results[idempotency_key] = result
+
+    async def unresolved(self) -> list[Mapping[str, Any]]:
+        return list(self._unresolved.values())
+
+    async def resolve(self, operation_id: str, result: ActionResult, by: str, note: str) -> None:
+        entry = self._unresolved.pop(operation_id)
+        self.entries.append(
+            {"kind": "resolution", "operation_id": operation_id, "outcome": result.outcome.value, "by": by, "note": note, "at": time.time()}
+        )
+        key = entry.get("idempotency_key")
+        if key:
+            if result.outcome is Outcome.SUCCEEDED:
+                self._results[key] = result  # a repeat of the task now gets the settled answer
+            else:
+                self._results.pop(key, None)  # confirmed not done: the same key may be tried again
 
 
 _SUSPECT = re.compile(

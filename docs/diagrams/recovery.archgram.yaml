@@ -4,8 +4,9 @@ title: Recovery after a crash
 description: >-
   After a restart the ambassador reads the journal for intents that have
   no outcome. For each one it follows what the capability declares: it
-  verifies with the external system, resends, or stops and reports the
-  outcome as unknown. Then it records the outcome.
+  asks the external system about the operation id, sends it again, or
+  stops and reports the outcome as unknown for its owner to settle. Then
+  it records the outcome.
 participants:
   - { id: amb, kind: agent, label: Ambassador, note: restarted, source: "../pattern.md#on restart the ambassador must reconcile it" }
   - { id: journal, kind: database, label: Journal, source: "../pattern.md#Records intent and outcome for every crossing" }
@@ -18,14 +19,14 @@ messages:
   - alt:
       - when: verify
         messages:
-          - { from: amb, to: ext, label: did you receive it, source: "../pattern.md#ask the external system whether it received the action" }
+          - { from: amb, to: ext, label: did you receive it, source: "../pattern.md#ask the external system whether it received the operation id" }
           - { reply: ext, label: yes or no }
       - when: resend
         messages:
-          - { from: amb, to: ext, label: send again, source: "../pattern.md#safe because the external action is itself idempotent" }
+          - { from: amb, to: ext, label: send same operation id, source: "../pattern.md#send the same operation id again" }
           - { reply: ext, label: result }
       - when: else
         messages:
-          - { from: amb, to: amb, label: outcome unknown, async: true, refused: true, source: "../pattern.md#with the reason" }
+          - { from: amb, to: amb, label: "outcome unknown, held for the owner", async: true, refused: true, source: "../pattern.md#report `unknown`. Nothing is sent and nothing is offered" }
   - phase: Close
   - { from: amb, to: journal, label: record outcome, async: true, source: "../pattern.md#After, it records the outcome" }

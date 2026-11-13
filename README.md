@@ -26,7 +26,7 @@ A design pattern for agentic integration platforms. It answers a question tool p
 | Part | Statement |
 |---|---|
 | One concept | The ambassador: one boundary, one ambassador, one named human owner |
-| One interaction model | The core opens tasks. Each task ends as `succeeded`, `failed`, `rejected` or `deferred`. None pauses |
+| One interaction model | The core opens tasks. Each task ends as `succeeded`, `failed`, `rejected` or `unknown`. None pauses |
 | One reliability rule | Every action is journalled before it happens, so the ambassador recovers on its own |
 | Seven duties | Contract, identity, policy, admission, journal, quarantine, fallback |
 
@@ -40,7 +40,7 @@ A design pattern for agentic integration platforms. It answers a question tool p
 | Admission | One task at a time per resource, a bounded wait, a refusal with a retry hint when full, paced to the external quota |
 | Journal | Intent recorded before every crossing, outcome after; the audit record |
 | Quarantine | Everything from outside is data, sanitised before core agents see it |
-| Fallback | Another channel when the external system cannot finish the job |
+| Fallback | Another channel, offered only when the action is known not to have been done |
 
 **Two choices**
 

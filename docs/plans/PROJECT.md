@@ -47,7 +47,8 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 ## Open questions
 
 - Should the three already-pushed commits be rewritten to remove their co-author lines? That needs a one-time force-push.
-- Where does deferred map in A2A terms? Current choice: failed, with the fallback carried in the extension.
+- Where does `unknown` map in A2A terms? Current choice: failed, with the outcome and operation id carried in the extension. The weakest row of the mapping, because a client that ignores the extension may read a plain failure.
+- How long may an unknown outcome be held, who is alerted, and may a task type set a time limit before escalating?
 - Should the gaps be published as a formal A2A extension?
 - Which generator, if any, for the docs site (FEAT-006)?
 
@@ -59,3 +60,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-13 · collect all references, create a full documentation with animated diagrams, create the article and check how to publish and advertise it · FEAT-012 added with four children; FEAT-006 and TASK-007 dropped as superseded
 - 2026-11-13 · merge all to one article and lets check where to publish · TASK-013 added
 - 2026-11-13 · switch the example to the shop-and-courier domain · TASK-014 recorded as done; worked example, article, reference example and tests changed
+- 2026-11-13 · review findings 3 and 4: durable journaling does not guarantee exactly-once effects, and `deferred` conflates execution outcome and fallback · `deferred` replaced by `unknown`; fallback separated from the outcome and withheld while unknown; delivery classes, operation id, ambiguous-failure rule and manual resolution added; TASK-015 recorded as done

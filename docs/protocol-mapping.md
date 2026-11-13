@@ -26,9 +26,11 @@ Checked against the types in the A2A Python SDK, version 1.3. It is not a full r
 | `rejected` | `rejected` | Direct |
 | Subscription and notices | Streaming or push notifications on a task the core opened | Direct |
 | Compensation | A new task on the compensating skill. `canceled` is not compensation | Direct, by convention |
-| `deferred` with a fallback channel | None | Extension |
+| `unknown`: may have been done, must be reconciled | None | Extension |
+| Fallback channel and instructions, beside an outcome | None | Extension |
+| Operation id, to reconcile by | None | Extension |
 | Compensable, partly, or not, per capability | None | Extension |
-| How an unknown outcome is reconciled, per capability | None | Extension |
+| Delivery class per capability: how an unknown outcome is settled | None | Extension |
 | Retry hint on a refusal | None | Extension |
 | Admission: one at a time per resource, bounded wait | None. The SDK starts each request concurrently and does not limit intake | Ambassador duty |
 | Acting for a principal | Security schemes exist. Acting on behalf of someone is not standardised | Ambassador duty |
@@ -37,11 +39,13 @@ Checked against the types in the A2A Python SDK, version 1.3. It is not a full r
 
 Two A2A task states are not used by the core pattern: `input-required` and `auth-required`. Both pause a task to ask the caller for something, and an ambassador's tasks do not pause. They remain available if you add optional human approval.
 
-## The current mapping for `deferred`
+## The current mapping for `unknown`
 
-`deferred` means the action was not done here and another channel can finish it. A2A has no state for that. The current choice is to end the task as `failed` and carry the fallback channel and instructions in extension data.
+`unknown` means the action may or may not have been carried out. A2A has no state for that. The current choice is to end the task as `failed` and carry the real outcome, `unknown`, and the operation id in extension data.
 
-Mapping it to `completed` was rejected: a caller that does not understand the extension would read the task as done.
+This is the weakest row in the mapping, and it is worth being plain about why. Mapping it to `completed` was rejected: a caller would read the task as done. Mapping it to `failed` has the opposite risk: a client that does not understand the extension reads a plain failure and may retry. Two things limit the harm. The ambassador answers a repeat of the same task, under the same idempotency key, with `unknown` and does not send it again. And no fallback channel is attached, so nothing invites the client to redo the action elsewhere. A client that retries under a new key, or acts on its own, defeats both.
+
+A fallback channel and its instructions are a separate field. They travel beside `failed` when the action is known not to have been done, and are never attached to `unknown`.
 
 ## The Extension
 
@@ -49,11 +53,12 @@ A2A lets an agent card and a message declare extensions. The rows marked "Extens
 
 | Field | Where | Values |
 |---|---|---|
-| Outcome | Final message of a task | `succeeded`, `failed`, `rejected`, `deferred` |
-| Fallback | Final message, when deferred | Channel and instructions |
+| Outcome | Final message of a task | `succeeded`, `failed`, `rejected`, `unknown` |
+| Operation id | Final message, when unknown | The identifier to reconcile by |
+| Fallback | Final message, when failed and known not done | Channel and instructions |
 | Retry after | Final message, when rejected for load | Seconds |
 | Compensation | Each skill | `compensable`, `partly`, `not`, and the compensating skill if any |
-| Unknown outcome | Each skill | `verify`, `resend`, `stop` |
+| Delivery class | Each skill | `verify`, `resend`, `stop` |
 
 This extension is a proposal. It has not been published or registered anywhere.
 

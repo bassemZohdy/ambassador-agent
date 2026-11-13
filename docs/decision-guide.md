@@ -40,15 +40,16 @@ Start scripted and move up only for a named reason.
 
 If you add a model, prefer a fast, low-latency one. A model on the happy path of a high-volume call is usually a mistake: it adds latency, cost and variance to something a script does perfectly.
 
-An ambassador does not ask a person or the core what to do. If it cannot decide, it ends the task as `failed` or `deferred`. If you find it needs to deliberate about goals, the decision belongs to a core agent.
+An ambassador does not ask a person or the core what to do. If it cannot decide, it ends the task as `failed` (known not done) or `unknown` (may have been done). If you find it needs to deliberate about goals, the decision belongs to a core agent.
 
 ## Designing a capability
 
-For each capability with a side effect, answer three questions. The answers are part of the contract.
+For each capability with a side effect, answer four questions. The answers are part of the contract.
 
 | Question | Options | How to choose |
 |---|---|---|
-| If the ambassador stops mid-action, how is the unknown outcome reconciled? | Verify, resend, stop | Verify if the external system can report on a reference. Resend only if the external action is itself idempotent. Otherwise stop |
+| If the ambassador stops mid-action, or a request times out, how is the unknown outcome settled? | Verify, resend, stop | Verify if the external system can report on an operation id. Resend only if it ignores a repeated operation id (effectively once) or a duplicate is harmless (at least once, knowingly). Otherwise stop: outcomes will sometimes be unknown and a person settles them |
+| What does the external system accept as an idempotency key or client reference? | The operation id goes there | If it accepts none, no capability on it can be better than at-least-once or stop |
 | Can it be compensated? | Compensable, partly, not | Be honest: a refund is "partly", a delivered message is "not" |
 | What is the resource? | A key such as an order number or an account | Tasks for the same key run one at a time. Choose the narrowest key that prevents a race |
 
@@ -100,7 +101,7 @@ The two choices are independent, and all four combinations are valid.
 ## Checklist before production
 
 - [ ] A named owner in the description
-- [ ] Durable journal and idempotency record
+- [ ] Durable journal and idempotency record, with a place to list unresolved outcomes and a named owner who is told
 - [ ] Reconciliation on restart tested by stopping the ambassador mid-action
 - [ ] Credential broker that propagates the end user's identity
 - [ ] Policy reviewed for every irreversible capability

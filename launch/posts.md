@@ -25,7 +25,7 @@ I am proposing a design pattern for that gap: the Ambassador Agent.
 One accountable, autonomous agent per external-system boundary. Core agents never touch an external system. The whole definition is four lines:
 
 → One concept: one boundary, one ambassador, one named owner
-→ One interaction model: the core opens tasks; each ends as succeeded, failed, rejected or deferred
+→ One interaction model: the core opens tasks; each ends as succeeded, failed, rejected or unknown
 → One reliability rule: every action is journalled before it happens
 → Seven duties: contract, identity, policy, admission, journal, quarantine, fallback
 
