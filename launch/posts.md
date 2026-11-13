@@ -33,6 +33,8 @@ It borrows from the outbox, the saga and the actor model, uses A2A as its refere
 
 It is a proposal, with open questions listed in the repo. Tell me where it breaks.
 
+This is a personal project.
+
 https://github.com/bassemZohdy/ambassador-agent
 
 #AgenticAI #SoftwareArchitecture #IntegrationPatterns #A2A
