@@ -30,7 +30,7 @@ What stays the same: the four outcomes, the operation id, and the rule that a fa
 - **Failing over to another system is a fallback.** It is allowed only after the first attempt is known not to have been done. If the first attempt is `unknown`, the ambassador does not try the second system. It holds the resource and reports `unknown`, exactly as a system ambassador would.
 - **The operation id must survive the choice.** The same task keeps the same id whichever system it reaches, so a recovery can ask the right system about the right action.
 
-The [decision guide](decision-guide.md) says when to group systems behind one ambassador.
+The [decision guide](decision-guide.md) says when to group systems behind one ambassador, and the [group example](example-group.md) works through provider choice, failover and one journal.
 
 ## Peer ambassador
 

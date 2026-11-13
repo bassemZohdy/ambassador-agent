@@ -1,0 +1,19 @@
+archgram: 1
+title: Group ambassador with failover
+description: >-
+  A delivery ambassador chooses between two couriers. It tries the second
+  only when the first is known not to have been asked, and it writes every
+  attempt in one journal.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Shop assistant, note: asks to book a delivery, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: Delivery ambassador, note: chooses the courier, source: "../pattern.md#It chooses the system; callers do not" }
+  - { id: north, kind: service, label: Northline, note: first choice, variant: external, source: "../pattern.md#One per logical capability in front of several systems" }
+  - { id: quick, kind: service, label: Quickpost, note: second choice, variant: external, source: "../pattern.md#One per logical capability in front of several systems" }
+edges:
+  - { from: core, to: amb, label: book_delivery, source: "../pattern.md#Only the core opens a task" }
+  - { from: amb, to: north, label: attempt 1, source: "../pattern.md#It chooses the system; callers do not" }
+  - { from: amb, to: quick, label: "attempt 2, if 1 was never sent", style: dashed, source: "../pattern.md#is the first moment another channel may be offered" }
+flows:
+  - { name: "first choice", steps: [core, amb, north] }
+  - { name: "failover when the first was never sent", steps: [core, amb, quick] }

@@ -58,4 +58,6 @@ Deployment: durable and always on, because a delivery completes days later and t
 
 Suppose the Courier starts returning vague errors such as "request could not be processed" for several different causes. The team moves the ambassador to *assisted* with a small, fast model that classifies the failure as retry, fallback or fail. It cannot override the delivery rule: a timeout on a booking is still settled before anything is retried. Callers see the same four outcomes as before and need no change.
 
+A second example, with two couriers behind one group ambassador, is in [example-group.md](example-group.md).
+
 A runnable version of this example is in [`reference/python/examples/shipments.py`](../reference/python/examples/shipments.py).
