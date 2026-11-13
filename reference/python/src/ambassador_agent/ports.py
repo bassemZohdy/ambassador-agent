@@ -46,6 +46,16 @@ class CredentialBroker(Protocol):
     async def credentials_for(self, principal: Principal, capability: Capability) -> Mapping[str, Any]: ...
 
 
+class PrincipalVerifier(Protocol):
+    """Establishes who a task is for, from proof the caller cannot make up.
+
+    Return the verified Principal (its scopes come from the proof, not from the task), or a string
+    saying why the principal is not accepted. The string goes to the journal and not to the caller.
+    """
+
+    async def verify(self, request: ActionRequest) -> Principal | str: ...
+
+
 class Policy(Protocol):
     """Decides whether a task may cross the boundary. Return None to allow, or a reason to refuse."""
 

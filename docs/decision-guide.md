@@ -114,7 +114,7 @@ Running one copy is a single point of failure for the boundary. Running several 
 - [ ] A client rule that an `unknown` is never retried under a new key
 - [ ] If more than one copy runs: mutual exclusion across copies, a shared journal and a claim on open intents, tested under delay
 - [ ] Credential broker that propagates the end user's identity
-- [ ] The principal built from a verified delegation, never from the task alone (see [identity and trust](identity-and-trust.md))
+- [ ] The principal built from a verified delegation, never from the task alone (see [identity and trust](identity-and-trust.md)). In the reference, configure a `PrincipalVerifier`
 - [ ] Policy reviewed for every irreversible capability
 - [ ] Admission limits set, and a refusal carries a retry hint
 - [ ] Sanitiser reviewed against the content this system actually returns

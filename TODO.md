@@ -24,6 +24,3 @@
   - Done when: it runs against the shipments example; `cd reference/python && pytest tests/test_mcp_binding.py`
   - Links: Ref: docs/plans/PROJECT.md#out-of-scope · Lane: reference
   - State: next: decompose
-- [ ] **TASK-017** · P2 · mid · Add a principal verifier to the reference implementation
-  - Done when: a task whose principal is unverified, expired or issued to another caller ends as rejected and is journalled; `cd reference/python && pytest tests/test_identity.py`
-  - Links: Ref: docs/identity-and-trust.md#a-forged-principal · Lane: reference

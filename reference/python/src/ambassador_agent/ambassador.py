@@ -5,7 +5,7 @@ import asyncio
 import time
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable, Mapping
 
 from .defaults import InMemoryJournal, QuarantineSanitizer, ScopePolicy, StaticCredentials
@@ -29,6 +29,7 @@ from .ports import (
     Journal,
     PermanentError,
     Policy,
+    PrincipalVerifier,
     Reasoner,
     Sanitizer,
     Subscriber,
@@ -76,6 +77,7 @@ class Ambassador:
         *,
         credentials: CredentialBroker | None = None,
         policy: Policy | None = None,
+        verifier: PrincipalVerifier | None = None,
         journal: Journal | None = None,
         sanitizer: Sanitizer | None = None,
         reasoner: Reasoner | None = None,
@@ -88,6 +90,7 @@ class Ambassador:
         self._connector = connector
         self._credentials = credentials or StaticCredentials()
         self._policy = policy or ScopePolicy()
+        self._verifier = verifier  # None: the principal is taken as given (see docs/identity-and-trust.md)
         self.journal = journal or InMemoryJournal()
         self._sanitizer = sanitizer or QuarantineSanitizer()
         self._reasoner = reasoner
@@ -130,6 +133,7 @@ class Ambassador:
             "description": s.description,
             "version": s.version,
             "intelligence": s.intelligence.value,
+            "verifies_principal": self._verifier is not None,
             "capabilities": [
                 {
                     "name": c.name,
@@ -156,6 +160,12 @@ class Ambassador:
 
     async def perform(self, request: ActionRequest) -> ActionResult:
         """Run one task to a final outcome. It never pauses and never asks back."""
+        if self._verifier is not None:
+            # Before anything else, so a caller that cannot prove who it acts for learns nothing about the contract.
+            verified = await self._verifier.verify(request)
+            if isinstance(verified, str):
+                return await self._refuse(request, "principal_unverified", "the principal was not accepted", detail=verified)
+            request = replace(request, principal=verified)  # scopes now come from the proof, not from the task
         capability = self._capabilities.get(request.capability)
         if capability is None:
             return await self._refuse(request, "unknown_capability", f"'{request.capability}' is not offered by {self.spec.name}")
@@ -359,9 +369,12 @@ class Ambassador:
             },
         )
 
-    async def _refuse(self, request: ActionRequest, code: str, message: str, error: BoundaryError | None = None) -> ActionResult:
+    async def _refuse(self, request: ActionRequest, code: str, message: str, error: BoundaryError | None = None, detail: str | None = None) -> ActionResult:
         error = error or BoundaryError(code, message)
-        await self.journal.record({**self._describe(request), "kind": "refused", "outcome": Outcome.REJECTED.value, "error": code})
+        record = {**self._describe(request), "kind": "refused", "outcome": Outcome.REJECTED.value, "error": code}
+        if detail:
+            record["detail"] = detail  # why, for the owner. The caller is told only that it was not accepted
+        await self.journal.record(record)
         return ActionResult(Outcome.REJECTED, error=error)
 
     def _describe(self, request: ActionRequest, operation_id: str | None = None) -> dict[str, Any]:
@@ -374,6 +387,7 @@ class Ambassador:
             "owner": self.spec.owner,
             "capability": request.capability,
             "payload": dict(request.payload),
+            "caller": request.caller,
             "subject": request.principal.subject,
             "on_behalf_of": request.principal.on_behalf_of,
             "scopes": sorted(request.principal.scopes),

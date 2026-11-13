@@ -78,6 +78,10 @@ class ActionRequest:
     principal: Principal
     idempotency_key: str | None = None
     correlation_id: str | None = None
+    # Set by the binding from what it authenticated, never from the task's own words. `caller` is the
+    # authenticated core agent or workload; `delegation` is the proof that it may act for the principal.
+    caller: str | None = None
+    delegation: str | None = None
 
 
 @dataclass(frozen=True)

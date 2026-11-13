@@ -87,7 +87,11 @@ For every task: the authenticated caller, the principal, the scopes in force, th
 
 ## What the reference implementation does
 
-It carries a `Principal` with every request, asks a credential broker for credentials for that principal, and checks the principal's scopes, including the approval scope. It does **not** verify the caller or the delegation: it takes the principal as given, and a test double stands in for the broker. That is the gap a binding must close, and the reference does not meet the rule for it ([C38](conformance.md)). A principal verifier is tracked in the backlog.
+It carries a `Principal` with every request, asks a credential broker for credentials for that principal, and checks the principal's scopes, including the approval scope.
+
+It also has a `PrincipalVerifier` port, and `HmacDelegations` is a stand-in that uses signed delegations from the standard library. With a verifier configured, the ambassador checks it first, before anything else. The principal is rebuilt from the delegation, so its scopes come from the proof and anything the task claims about scopes is ignored. A task with no delegation, a bad signature, an expiry in the past, another audience, another caller, or a different principal than the one the delegation names ends as `rejected` with the code `principal_unverified`. The caller is told only that the principal was not accepted. The reason goes in the journal beside the caller and the claimed principal. Tests cover each case.
+
+Two limits remain. The verifier is off by default, and without it the reference takes the principal as given, which the contract shows as `verifies_principal: false`. And `HmacDelegations` is a teaching stand-in: a real deployment uses its identity provider's tokens and the same checks, and a test double still stands in for the credential broker.
 
 ## Checklist
 

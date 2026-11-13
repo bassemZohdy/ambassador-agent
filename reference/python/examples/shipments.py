@@ -176,6 +176,7 @@ def build_ambassador(
     on_unknown: Unknown = Unknown.VERIFY,
     absence_final: bool = True,  # the Courier rejects a booking request older than its own timeout
     settle_after: float = 0.0,  # seconds to wait before believing "no record"; zero because the fake is synchronous
+    verifier=None,  # a PrincipalVerifier; None takes the principal as given
 ) -> Ambassador:
     spec = AmbassadorSpec(
         name="courier-ambassador",
@@ -191,6 +192,7 @@ def build_ambassador(
         reasoner=None if intelligence is Intelligence.SCRIPTED else FastClassifier(),
         resilience=resilience or Resilience(backoff_seconds=0.0),
         admission=admission,
+        verifier=verifier,
     )
     ambassador.offer(
         Capability(

@@ -1,9 +1,13 @@
 """In-memory defaults so the pattern runs with zero infrastructure. Replace in production."""
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import json
 import re
 import time
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from .model import ActionRequest, ActionResult, Capability, Notice, Outcome, Principal
 
@@ -14,6 +18,69 @@ class StaticCredentials:
 
     async def credentials_for(self, principal: Principal, capability: Capability) -> Mapping[str, Any]:
         return {**self._credentials, "on_behalf_of": principal.on_behalf_of or principal.subject}
+
+
+class HmacDelegations:
+    """Signed delegations, using the standard library only. A stand-in for a real token service.
+
+    A delegation says: this caller may act for this principal, with these scopes, for this ambassador,
+    until this time. In production use the tokens your identity provider issues (a signed JWT, an
+    OAuth token exchange) and the same checks. The point here is the checks, not the encoding.
+    """
+
+    def __init__(self, secret: bytes, audience: str, clock: Callable[[], float] = time.time) -> None:
+        self._secret = secret
+        self.audience = audience
+        self._clock = clock
+
+    def issue(
+        self,
+        *,
+        caller: str,
+        subject: str,
+        on_behalf_of: str | None = None,
+        scopes: frozenset[str] | set[str] = frozenset(),
+        ttl_seconds: float = 300.0,
+        audience: str | None = None,
+    ) -> str:
+        claims = {
+            "caller": caller,
+            "subject": subject,
+            "on_behalf_of": on_behalf_of,
+            "scopes": sorted(scopes),
+            "aud": audience or self.audience,
+            "exp": self._clock() + ttl_seconds,
+        }
+        body = base64.urlsafe_b64encode(json.dumps(claims, sort_keys=True).encode())
+        return f"{body.decode()}.{self._sign(body)}"
+
+    async def verify(self, request: ActionRequest) -> Principal | str:
+        if not request.delegation:
+            return "no delegation presented"
+        if not request.caller:
+            return "caller not authenticated"
+        body, _, signature = request.delegation.partition(".")
+        if not body or not hmac.compare_digest(signature, self._sign(body.encode())):
+            return "delegation signature invalid"
+        try:
+            claims = json.loads(base64.urlsafe_b64decode(body.encode()))
+            expires, audience, caller = float(claims["exp"]), claims["aud"], claims["caller"]
+            subject, on_behalf_of, scopes = claims["subject"], claims.get("on_behalf_of"), frozenset(claims["scopes"])
+        except (ValueError, KeyError, TypeError):
+            return "delegation unreadable"
+        if expires <= self._clock():
+            return "delegation expired"
+        if audience != self.audience:
+            return f"delegation issued for another ambassador ({audience})"
+        if caller != request.caller:
+            return "delegation issued to another caller"
+        asserted = request.principal
+        if (asserted.subject, asserted.on_behalf_of) != (subject, on_behalf_of):
+            return "task names a different principal than the delegation"
+        return Principal(subject=subject, on_behalf_of=on_behalf_of, scopes=scopes, claims={"caller": caller})
+
+    def _sign(self, body: bytes) -> str:
+        return base64.urlsafe_b64encode(hmac.new(self._secret, body, hashlib.sha256).digest()).decode()
 
 
 class ScopePolicy:

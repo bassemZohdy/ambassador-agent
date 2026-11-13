@@ -36,10 +36,13 @@ Defined in `ambassador_agent.ports` as `typing.Protocol` classes. Implement the 
 | `Connector` | `invoke(operation, payload, credentials)`, `healthy()` | none: you write one per external system |
 | `CredentialBroker` | `credentials_for(principal, capability)` | `StaticCredentials` |
 | `Policy` | `refuse_reason(request, capability)` | `ScopePolicy` |
+| `PrincipalVerifier` | `verify(request)`, returning the verified `Principal` or a reason | none by default; `HmacDelegations` as a stand-in |
 | `Journal` | `begin(intent)`, `finish(id, outcome)`, `unfinished()`, `record(entry)`, `recall(key)`, `remember(key, result)`, `unresolved()`, `resolve(operation_id, result, by, note)` | `InMemoryJournal`, and the durable `SqliteJournal` |
 | `Sanitizer` | `clean(data)` | `QuarantineSanitizer` |
 | `Subscriber` | `notify(notice)` | `ListSubscriber` |
 | `Reasoner` | `advise(request, error, attempts)`, `think(instruction, context)` | none: required only above L0 |
+
+An `ActionRequest` also carries `caller` and `delegation`. The binding sets them from what it authenticated, never from the task's words. With a verifier configured, the ambassador rebuilds the principal from the delegation before anything else, so a task's own claims about scopes add nothing, and an unverifiable principal is rejected as `principal_unverified` and journalled.
 
 A connector signals failure with `TransientError` (worth retrying) or `PermanentError` (not). A `TransientError` says whether the action `may_have_executed`: a refused connection did not, a timeout after sending may have, and that is the default. Only the first can be retried or redirected straight away. The second is settled first, by the capability's `verify`, `resend` or `stop`.
 
