@@ -39,6 +39,8 @@ The pattern was shaped by several earlier ones, none adopted as is. [influences.
 
 ### The definition in four parts
 
+The [glossary](glossary.md) defines each term used here.
+
 | Part | Statement |
 |---|---|
 | One concept | The ambassador: one boundary, one ambassador, one named human owner |

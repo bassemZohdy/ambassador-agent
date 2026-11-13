@@ -45,6 +45,8 @@ An ambassador never starts an exchange with the core. The core opens a subscript
 
 ## Terms
 
+The main terms are below. The [glossary](glossary.md) has all of them, grouped.
+
 | Term | Meaning |
 |---|---|
 | Ambassador | The agent that owns one boundary and answers for everything that crosses it |
