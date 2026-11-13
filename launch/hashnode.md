@@ -210,7 +210,7 @@ This is version 0.2 of a proposal. It has no documented use in production yet.
 
 ## Read it and break it
 
-The repository holds the full definition, numbered conformance rules with the designs that fail them, a page on identity and trust, a decision guide, the worked example in detail, the protocol mapping and every source. It is independent of any language, agent platform or protocol. A small reference implementation is included only to show it can be built.
+The repository holds the full definition, numbered conformance rules with the designs that fail them, a page on identity and trust, a catalogue of anti-patterns, a glossary, a page for each variant, a guide to combining the pattern with a gateway, MCP, a saga or a supervisor, a decision guide, two worked examples, a page of questions and objections, the protocol mapping and every source. It is independent of any language, agent platform or protocol. A small reference implementation is included only to show it can be built.
 
 **https://github.com/bassemZohdy/ambassador-agent**
 
