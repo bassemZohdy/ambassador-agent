@@ -1,0 +1,17 @@
+archgram: 1
+title: Supervisor above worker agents
+description: >-
+  A supervisor faces inward and divides work. The ambassador faces
+  outward and guards a border. Only the ambassador crosses it.
+direction: right
+nodes:
+  - { id: sup, kind: agent, label: Supervisor, note: divides work, source: "../comparison.md#A supervisor faces inward and divides work" }
+  - { id: w1, kind: agent, label: Worker agent, note: core system, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: Ambassador, note: guards the border, source: "../comparison.md#An ambassador faces outward and guards a border" }
+  - { id: ext, kind: service, label: External system, variant: external, source: "../comparison.md#An ambassador faces outward and guards a border" }
+edges:
+  - { from: sup, to: w1, label: delegates, source: "../comparison.md#A supervisor faces inward and divides work" }
+  - { from: w1, to: amb, label: task, source: "../pattern.md#Only the core opens a task" }
+  - { from: amb, to: ext, label: action, source: "../comparison.md#An ambassador faces outward and guards a border" }
+flows:
+  - { name: "inward divides, outward guards", steps: [sup, w1, amb, ext] }

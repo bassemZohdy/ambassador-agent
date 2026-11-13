@@ -5,9 +5,6 @@
 - [ ] **FEAT-002** · P0 · mid · Write the pattern specification v1.0
   - Done when: docs/pattern.md links every specification page and all pages pass; `python3 tools/check_docs.py docs --reachable-from docs/pattern.md`
   - Links: Ref: docs/plans/PROJECT.md#scope · Depends: TASK-001 · Lane: pattern
-- [ ] **FEAT-003** · P1 · mid · Add a composition guide for gateway, MCP, saga and supervisor, one diagram each
-  - Done when: four compositions each have a diagram and link to comparison.md; `python3 tools/check_docs.py docs/composition.md --require Gateway --require MCP --require Saga`
-  - Links: Ref: docs/plans/PROJECT.md#scope · Depends: FEAT-002 · Lane: pattern
 - [ ] **FEAT-004** · P1 · mid · Add a second worked example for a group ambassador in front of several providers
   - Done when: the example shows provider choice, failover and one ledger; `python3 tools/check_docs.py docs/example-group.md --require Failover`
   - Links: Ref: docs/plans/PROJECT.md#scope · Depends: FEAT-002 · Lane: pattern

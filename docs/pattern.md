@@ -290,4 +290,4 @@ None documented yet. This is a proposed pattern. If you run something that match
 
 ## Related patterns
 
-See [influences.md](influences.md) for what the pattern took from earlier work, and [comparison.md](comparison.md) for how it differs from its neighbours.
+See [influences.md](influences.md) for what the pattern took from earlier work, and [comparison.md](comparison.md) for how it differs from its neighbours. [composition.md](composition.md) shows how to combine it with a gateway, MCP, a saga or a supervisor.

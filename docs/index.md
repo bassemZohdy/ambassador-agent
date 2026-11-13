@@ -78,6 +78,7 @@ The main terms are below. The [glossary](glossary.md) has all of them, grouped.
 | Bind it to a protocol | [Protocol mapping](protocol-mapping.md), with A2A as the reference |
 | Know where the ideas came from | [Influences](influences.md) |
 | Choose between this and a neighbouring pattern | [Comparison and prior art](comparison.md) |
+| Combine it with a gateway, MCP, a saga or a supervisor | [Composition](composition.md) |
 | Follow up the sources | [References](references.md) |
 
 A small reference implementation in Python lives in the repository's `reference/` folder. It shows the pattern can be built; the pattern does not depend on it.

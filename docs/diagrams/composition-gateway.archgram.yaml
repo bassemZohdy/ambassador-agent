@@ -1,0 +1,18 @@
+archgram: 1
+title: Gateway in front of an ambassador
+description: >-
+  A gateway governs traffic for everyone, and the ambassador sits behind
+  it and answers for one boundary. The gateway stops floods. The
+  ambassador protects the boundary's own quota.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Core system, note: opens tasks, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: gw, kind: service, label: Gateway, note: "auth, per-caller limits, observability", source: "../comparison.md#A gateway is horizontal and semantics-free" }
+  - { id: amb, kind: agent, label: Ambassador, note: "one boundary, full meaning", source: "../comparison.md#An ambassador is vertical: one boundary, full meaning" }
+  - { id: ext, kind: service, label: External system, variant: external, source: "../comparison.md#ambassadors sit behind the gateway" }
+edges:
+  - { from: core, to: gw, label: task, source: "../comparison.md#Central policy, auth and observability" }
+  - { from: gw, to: amb, label: admitted task, source: "../comparison.md#ambassadors sit behind the gateway" }
+  - { from: amb, to: ext, label: action, source: "../decision-guide.md#the ambassador protects the boundary's own quota" }
+flows:
+  - { name: "govern, then answer for it", steps: [core, gw, amb, ext] }

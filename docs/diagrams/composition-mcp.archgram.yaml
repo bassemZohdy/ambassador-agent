@@ -1,0 +1,18 @@
+archgram: 1
+title: MCP tool inside an ambassador
+description: >-
+  An MCP tool is a good connector inside an ambassador. It exposes the
+  external system but does not answer for outcomes, so the ambassador
+  stays in front of it and the core never holds the tool.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Core system, note: no connector or credential, source: "../conformance.md#No connector, credential or vendor schema is reachable from a core agent" }
+  - { id: amb, kind: agent, label: Ambassador, note: answers for the outcome, source: "../comparison.md#An MCP tool exposes; it does not answer for outcomes" }
+  - { id: mcp, kind: service, label: MCP tool, note: the connector, source: "../glossary.md#reachable only from inside the ambassador" }
+  - { id: ext, kind: service, label: External system, variant: external, source: "../glossary.md#The deterministic code that talks to the external system" }
+edges:
+  - { from: core, to: amb, label: task, source: "../pattern.md#Only the core opens a task" }
+  - { from: amb, to: mcp, label: call, source: "../glossary.md#reachable only from inside the ambassador" }
+  - { from: mcp, to: ext, label: vendor call, source: "../glossary.md#The deterministic code that talks to the external system" }
+flows:
+  - { name: "connector behind the ambassador", steps: [core, amb, mcp, ext] }

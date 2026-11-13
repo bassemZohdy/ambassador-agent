@@ -1,0 +1,20 @@
+archgram: 1
+title: Saga across two ambassadors
+description: >-
+  The core orchestrates an action that spans several boundaries. Each
+  ambassador is a participant and owns the compensating action for its
+  own system.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Core system, note: orchestrates the saga, source: "../pattern.md#The core orchestrates such an action" }
+  - { id: a, kind: agent, label: Ambassador A, note: owns A's compensation, source: "../comparison.md#it owns the compensating action for its system" }
+  - { id: b, kind: agent, label: Ambassador B, note: owns B's compensation, source: "../comparison.md#it owns the compensating action for its system" }
+  - { id: sa, kind: service, label: System A, variant: external, source: "../comparison.md#An ambassador is a natural saga participant" }
+  - { id: sb, kind: service, label: System B, variant: external, source: "../comparison.md#An ambassador is a natural saga participant" }
+edges:
+  - { from: core, to: a, label: "step 1 or its compensation", source: "../pattern.md#Another capability reverses its business effect" }
+  - { from: core, to: b, label: "step 2", source: "../pattern.md#each ambassador is a participant" }
+  - { from: a, to: sa, label: action, source: "../comparison.md#it owns the compensating action for its system" }
+  - { from: b, to: sb, label: action, source: "../comparison.md#it owns the compensating action for its system" }
+flows:
+  - { name: "step 1, step 2", steps: [core, a, sa] }

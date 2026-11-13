@@ -68,3 +68,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-14 · go on with the remaining points one by one · FEAT-002.4 recorded as done with docs/anti-patterns.md
 - 2026-11-14 · go on with the remaining points one by one · FEAT-002.1 recorded as done with docs/glossary.md
 - 2026-11-14 · go on with the remaining points one by one · FEAT-002.3 recorded as done with docs/variants.md and four variant diagrams
+- 2026-11-14 · go on · FEAT-003 recorded as done with docs/composition.md and four composition diagrams
