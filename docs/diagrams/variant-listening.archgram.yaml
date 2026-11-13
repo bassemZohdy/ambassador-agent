@@ -1,0 +1,16 @@
+archgram: 1
+title: Listening post
+description: >-
+  A listening post offers a subscription and no capabilities. It
+  watches an external system and reports what it sees as notices.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Core system, note: opens a subscription, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: Listening post, note: no capabilities, source: "../pattern.md#Offers a subscription and no capabilities" }
+  - { id: ext, kind: service, label: External system, note: sends events, variant: external, source: "../pattern.md#It watches an external system and reports" }
+edges:
+  - { from: core, to: amb, label: subscribe, source: "../pattern.md#Offers a subscription" }
+  - { from: ext, to: amb, label: external event, source: "../pattern.md#It watches an external system and reports" }
+  - { from: amb, to: core, label: notice, style: dashed, source: "../pattern.md#A notice is a fact, never a command" }
+flows:
+  - { name: watch and report, steps: [ext, amb, core] }

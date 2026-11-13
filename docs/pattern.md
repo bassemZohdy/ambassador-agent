@@ -237,6 +237,8 @@ How an ambassador is run (whether it keeps state between tasks, whether it is al
 - **Peer ambassador.** The external party is another organisation's agent. The ambassador speaks an agent protocol outward and still presents plain capabilities inward.
 - **Listening post.** Offers a subscription and no capabilities. It watches an external system and reports.
 
+Each variant has its own page, with a diagram, in [variants](variants.md).
+
 ## Optional and excluded
 
 | | Item | Why |

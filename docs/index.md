@@ -73,6 +73,7 @@ The main terms are below. The [glossary](glossary.md) has all of them, grouped.
 | Check a design or an implementation against the rules | [Conformance](conformance.md) |
 | Understand delegation, the confused deputy and forged principals | [Identity and trust](identity-and-trust.md) |
 | Recognise designs that look like the pattern and are not | [Anti-patterns](anti-patterns.md) |
+| Choose between a system, group, peer or listening-post ambassador | [Variants](variants.md) |
 | See it applied to one boundary, without code | [Worked example](example.md) |
 | Bind it to a protocol | [Protocol mapping](protocol-mapping.md), with A2A as the reference |
 | Know where the ideas came from | [Influences](influences.md) |

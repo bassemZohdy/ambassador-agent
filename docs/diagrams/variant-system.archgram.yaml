@@ -1,0 +1,16 @@
+archgram: 1
+title: System ambassador
+description: >-
+  A system ambassador is one ambassador for one external system, and it
+  is the default. The core system asks it for capabilities in the core's
+  language, and it is the only path to that system.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Core system, note: your language, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: System ambassador, note: one per external system, source: "../pattern.md#One per external system. The default." }
+  - { id: ext, kind: service, label: External system, note: vendor dialect, variant: external, source: "../pattern.md#many external systems you do not control" }
+edges:
+  - { from: core, to: amb, label: task, source: "../pattern.md#Only the core opens a task" }
+  - { from: amb, to: ext, label: act, source: "../pattern.md#Before an ambassador acts on the external system" }
+flows:
+  - { name: "one system, one ambassador", steps: [core, amb, ext] }

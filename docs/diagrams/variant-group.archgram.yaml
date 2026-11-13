@@ -1,0 +1,20 @@
+archgram: 1
+title: Group ambassador
+description: >-
+  A group ambassador stands in front of several systems that offer one
+  logical capability, such as payments across several banks. It chooses
+  the system, and callers do not.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Core system, note: asks for one capability, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: Group ambassador, note: chooses the system, source: "../pattern.md#It chooses the system; callers do not" }
+  - { id: a, kind: service, label: System A, variant: external, source: "../pattern.md#One per logical capability in front of several systems" }
+  - { id: b, kind: service, label: System B, variant: external, source: "../pattern.md#One per logical capability in front of several systems" }
+  - { id: c, kind: service, label: System C, variant: external, source: "../pattern.md#One per logical capability in front of several systems" }
+edges:
+  - { from: core, to: amb, label: task, source: "../pattern.md#Only the core opens a task" }
+  - { from: amb, to: a, label: chosen, source: "../pattern.md#It chooses the system; callers do not" }
+  - { from: amb, to: b, label: other choice, style: dashed, source: "../pattern.md#It chooses the system; callers do not" }
+  - { from: amb, to: c, label: other choice, style: dashed, source: "../pattern.md#It chooses the system; callers do not" }
+flows:
+  - { name: "one capability, several systems", steps: [core, amb, a] }

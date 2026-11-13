@@ -1,0 +1,16 @@
+archgram: 1
+title: Peer ambassador
+description: >-
+  A peer ambassador faces another organisation's agent. It speaks an
+  agent protocol outward and still presents plain capabilities inward,
+  so the core system does not change.
+direction: right
+nodes:
+  - { id: core, kind: agent, label: Core system, note: plain capabilities, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: Peer ambassador, note: speaks the protocol, source: "../pattern.md#speaks an agent protocol outward and still presents plain capabilities inward" }
+  - { id: peer, kind: agent, label: Partner agent, note: another organisation, variant: external, source: "../pattern.md#The external party is another organisation" }
+edges:
+  - { from: core, to: amb, label: capability, source: "../pattern.md#still presents plain capabilities inward" }
+  - { from: amb, to: peer, label: agent protocol, source: "../pattern.md#speaks an agent protocol outward" }
+flows:
+  - { name: "protocol outward, capabilities inward", steps: [core, amb, peer] }
