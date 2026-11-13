@@ -9,8 +9,6 @@
     - Done when: ambassador, boundary, capability, principal, durability and presence are defined; `python3 tools/check_docs.py docs/glossary.md --require Ambassador --require Principal --require Durability --require Presence`
   - [ ] **FEAT-002.3** · mid · Give each variant its own section and diagram
     - Done when: system, group, peer and listening-post variants each have a diagram; `python3 tools/check_docs.py docs/variants.md --require Group --require Peer --require Listening`
-  - [ ] **FEAT-002.4** · mid · Document anti-patterns and failure modes
-    - Done when: god ambassador, pass-through contract and shared credentials are covered; `python3 tools/check_docs.py docs/anti-patterns.md --require God --require Pass-through`
 - [ ] **FEAT-003** · P1 · mid · Add a composition guide for gateway, MCP, saga and supervisor, one diagram each
   - Done when: four compositions each have a diagram and link to comparison.md; `python3 tools/check_docs.py docs/composition.md --require Gateway --require MCP --require Saga`
   - Links: Ref: docs/plans/PROJECT.md#scope · Depends: FEAT-002 · Lane: pattern

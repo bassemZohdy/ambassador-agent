@@ -4,7 +4,7 @@ This page says what an implementation of the Ambassador Agent pattern **Must**, 
 
 The words follow common usage. **Must** is required: an implementation that breaks a Must rule is not an ambassador, whatever it is called. **Should** is expected, and a departure needs a stated reason. **May** is allowed and left to the owner.
 
-The rules apply to one ambassador on one boundary. They do not depend on a platform, a protocol, a language or a model.
+The designs that break them are described in [anti-patterns](anti-patterns.md). The rules apply to one ambassador on one boundary. They do not depend on a platform, a protocol, a language or a model.
 
 ## The rules
 

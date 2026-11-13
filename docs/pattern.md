@@ -261,9 +261,9 @@ How an ambassador is run (whether it keeps state between tasks, whether it is al
 - A durable journal is required, even for the simplest ambassador.
 - Where the external system can neither deduplicate nor be asked, some outcomes will be unknown and a person must settle them. The pattern makes that visible. It cannot remove it.
 - The ambassador is a single point of failure for its boundary. Run it redundantly, which needs more than a second copy (see more than one replica).
-- A capability contract must be designed. A thin pass-through contract gives none of the benefits.
+- A capability contract must be designed. A thin pass-through contract gives none of the benefits (see [anti-patterns](anti-patterns.md)).
 - Full autonomy puts the whole burden on policy: there is nobody to catch a bad decision at run time.
-- Too coarse a grouping produces a "god ambassador". See the decision guide.
+- Too coarse a grouping produces a "god ambassador". See the decision guide and [anti-patterns](anti-patterns.md).
 
 ## Rules of thumb
 

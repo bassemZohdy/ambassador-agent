@@ -65,3 +65,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-13 · complete the remaining actions after the hardening release · FEAT-002.2 recorded as done with docs/conformance.md; TASK-008 narrowed to the MCP binding because the durable journal now exists
 - 2026-11-13 · continue the work · FEAT-002.5 recorded as done with docs/identity-and-trust.md; conformance rules C38 to C41 added; TASK-017 added for a principal verifier in the reference, because the reference takes the principal as given
 - 2026-11-13 · go on with the remaining points one by one · TASK-017 recorded as done: principal verifier in the reference, off by default
+- 2026-11-14 · go on with the remaining points one by one · FEAT-002.4 recorded as done with docs/anti-patterns.md
