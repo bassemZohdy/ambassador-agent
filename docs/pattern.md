@@ -282,7 +282,7 @@ Each variant has its own page, with a diagram, in [variants](variants.md).
 
 ## Example
 
-See the [worked example](example.md). The rules above are restated as numbered Must, Should and May rules, with cases that fail them, in [conformance](conformance.md).
+See the [worked example](example.md), and the [group example](example-group.md) for an ambassador in front of two providers. The rules above are restated as numbered Must, Should and May rules, with cases that fail them, in [conformance](conformance.md).
 
 ## Known uses
 
@@ -290,4 +290,4 @@ None documented yet. This is a proposed pattern. If you run something that match
 
 ## Related patterns
 
-See [influences.md](influences.md) for what the pattern took from earlier work, and [comparison.md](comparison.md) for how it differs from its neighbours. [composition.md](composition.md) shows how to combine it with a gateway, MCP, a saga or a supervisor.
+See [influences.md](influences.md) for what the pattern took from earlier work, and [comparison.md](comparison.md) for how it differs from its neighbours. [composition.md](composition.md) shows how to combine it with a gateway, MCP, a saga or a supervisor. The [guide](index.md) is the short introduction, the [questions and objections](faq.md) page answers the likely pushback, and [references](references.md) lists the sources.
