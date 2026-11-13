@@ -79,6 +79,7 @@ Links were collected in November 2026. Vendor pages describe that vendor's produ
 | Source | Relation |
 |---|---|
 | Hardy, "The confused deputy", 1988; [Confused deputy problem](https://en.wikipedia.org/wiki/Confused_deputy_problem) | Why an ambassador acts for a named principal and never lends its own authority |
+| Jones et al., [RFC 8693, OAuth 2.0 Token Exchange](https://www.rfc-editor.org/rfc/rfc8693), 2020 | One way to turn a delegation into a token that identifies the principal at the external system. See [identity and trust](identity-and-trust.md) |
 
 ## How to add a reference
 

@@ -128,7 +128,7 @@ The journal is also the audit record: who asked, for whom, what was sent, what c
 | Duty | What the ambassador does |
 |---|---|
 | **Contract** | Publishes capabilities in the core system's language. Each one states whether it has a side effect, its delivery class (how an unknown outcome is settled, and whether "no record" is final), whether it can be compensated, and optionally its data classification, audit retention and whether a person must approve it |
-| **Identity** | Acts for a named principal and exchanges that identity for credentials the external system accepts. It never acts as itself by default |
+| **Identity** | Acts for a named principal and exchanges that identity for credentials the external system accepts. It never acts as itself by default, and it never takes the principal on the task's word alone (see [identity and trust](identity-and-trust.md)) |
 | **Policy** | Refuses a task before the boundary is crossed when the principal may not ask for it. With no person to ask, this check carries the full weight for irreversible actions |
 | **Admission** | Controls how much work it takes on. See below |
 | **Journal** | Records intent and outcome for every crossing, in both directions, and keeps unknown outcomes listed, with their resource held, until an owner settles them |

@@ -11,8 +11,6 @@
     - Done when: system, group, peer and listening-post variants each have a diagram; `python3 tools/check_docs.py docs/variants.md --require Group --require Peer --require Listening`
   - [ ] **FEAT-002.4** · mid · Document anti-patterns and failure modes
     - Done when: god ambassador, pass-through contract and shared credentials are covered; `python3 tools/check_docs.py docs/anti-patterns.md --require God --require Pass-through`
-  - [ ] **FEAT-002.5** · high · Document identity and trust across the boundary
-    - Done when: delegation, the confused deputy and a rejected forged principal are covered; `python3 tools/check_docs.py docs/identity-and-trust.md --require Delegation --require Confused`
 - [ ] **FEAT-003** · P1 · mid · Add a composition guide for gateway, MCP, saga and supervisor, one diagram each
   - Done when: four compositions each have a diagram and link to comparison.md; `python3 tools/check_docs.py docs/composition.md --require Gateway --require MCP --require Saga`
   - Links: Ref: docs/plans/PROJECT.md#scope · Depends: FEAT-002 · Lane: pattern
@@ -26,3 +24,6 @@
   - Done when: it runs against the shipments example; `cd reference/python && pytest tests/test_mcp_binding.py`
   - Links: Ref: docs/plans/PROJECT.md#out-of-scope · Lane: reference
   - State: next: decompose
+- [ ] **TASK-017** · P2 · mid · Add a principal verifier to the reference implementation
+  - Done when: a task whose principal is unverified, expired or issued to another caller ends as rejected and is journalled; `cd reference/python && pytest tests/test_identity.py`
+  - Links: Ref: docs/identity-and-trust.md#a-forged-principal · Lane: reference

@@ -35,7 +35,7 @@ Checked against the types in the A2A Python SDK, version 1.3. It is not a full r
 | Refusal because an unknown outcome holds the resource (`resource_held`) | None. A `rejected` task with an error code | Extension |
 | Governance declarations (data classification, audit retention, approval required) | None on the agent card. Approval maps to a security scope the principal holds | Extension |
 | Admission: one at a time per resource, bounded wait | None. The SDK starts each request concurrently and does not limit intake | Ambassador duty |
-| Acting for a principal | Security schemes exist. Acting on behalf of someone is not standardised | Ambassador duty |
+| Acting for a principal | Security schemes exist. Acting on behalf of someone is not standardised | Ambassador duty. See [identity and trust](identity-and-trust.md) |
 | Journal | None. A task store is not an audit record | Ambassador duty |
 | Quarantine | None | Ambassador duty |
 

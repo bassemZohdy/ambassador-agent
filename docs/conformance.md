@@ -51,6 +51,10 @@ The rules apply to one ambassador on one boundary. They do not depend on a platf
 | C22 | Must | The ambassador acts for a named principal and exchanges that identity for credentials the external system accepts. It does not act as itself by default |
 | C23 | Must | Policy is checked before the boundary is crossed, and a refused task ends as `rejected` |
 | C24 | Should | For a capability that declares approval, the ambassador checks that the approval scope is held. It does not ask anyone |
+| C38 | Must | The principal is established from a verified delegation or the caller's own verified credential, never from the task alone. A task whose principal cannot be verified ends as `rejected` before the boundary is crossed, and the refusal is journalled |
+| C39 | Must | Authority is the principal's, not the ambassador's. Policy checks the principal's scopes for every task, and no credential obtained for one principal is used for another |
+| C40 | Should | Credentials for the external system identify the principal or are limited to the task. When the external system allows only a shared service identity, the contract says so |
+| C41 | Should | A delegation carries an expiry and names the ambassador it is meant for. Events from outside are verified before they become notices |
 
 ### Admission
 
@@ -102,9 +106,11 @@ A design that breaks a Must rule is **Non-conformant**, however it is described.
 | Free text from the external system is passed to a core agent unsanitised | C29 | Text from outside can carry instructions |
 | An unbounded queue in front of the ambassador | C26 | Overload turns into memory exhaustion and stale work |
 | Two replicas share a journal and each checks it, then writes, with no lease | C35, C37 | Both can read "nothing open" before either writes |
+| The ambassador trusts an `on_behalf_of` field in the task and acts for whoever it names | C38 | Any caller can write that field. It is a forged principal |
+| One service credential with broad rights is used for every task, and policy checks only what the ambassador may do | C39 | The ambassador is a confused deputy. A read-only caller can trigger a write |
 
 ## Claiming conformance
 
 An implementation may say it conforms to this version of the pattern when it meets every Must rule. It should say which Should rules it leaves out, and why. It should say whether it has run in production, because the pattern itself has no documented use there yet.
 
-The [reference implementation](../reference/README.md) is built to meet the Must rules about an ambassador's own behaviour (C5 to C19, C22, C23, C25, C26, C29, C30 and C32) in one process, and its tests exercise them. C1 to C4 are about architecture and ownership, which code cannot show. It meets C20 only through its SQLite journal. It does not meet C35 and C36: the locks are in-process, and its tests show on purpose what goes wrong with two replicas.
+The [reference implementation](../reference/README.md) is built to meet the Must rules about an ambassador's own behaviour (C5 to C19, C22, C23, C25, C26, C29, C30, C32 and C39) in one process, and its tests exercise them. C1 to C4 are about architecture and ownership, which code cannot show. It meets C20 only through its SQLite journal. It does not meet C35 and C36: the locks are in-process, and its tests show on purpose what goes wrong with two replicas. It does not meet C38: it takes the principal as given, and verifying the caller and the delegation is left to a binding. [Identity and trust](identity-and-trust.md) explains the identity rules.
