@@ -1,0 +1,25 @@
+archgram: 1
+diagram: sequence
+title: One task, from open to outcome
+description: >-
+  A core agent opens a task. The ambassador checks policy and admission,
+  records its intent in the journal, sends the vendor request to the
+  external system, records the outcome, sanitises what came back and
+  answers with one of four outcomes.
+participants:
+  - { id: core, kind: agent, label: Core agent, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: Ambassador, source: "../pattern.md#on each boundary and make it the only path across" }
+  - { id: journal, kind: database, label: Journal, source: "../pattern.md#Records intent and outcome for every crossing" }
+  - { id: ext, kind: service, label: External system, variant: external, source: "../pattern.md#many external systems you do not control" }
+messages:
+  - phase: Admit
+  - { from: core, to: amb, label: open task, source: "../pattern.md#Only the core opens a task" }
+  - { from: amb, to: amb, label: "policy, admission", async: true, source: "../pattern.md#Refuses a task before the boundary is crossed" }
+  - phase: Record, then act
+  - { from: amb, to: journal, label: record intent, async: true, source: "../pattern.md#it records its intent" }
+  - { from: amb, to: ext, label: vendor request, source: "../pattern.md#Before an ambassador acts on the external system" }
+  - { reply: ext, label: vendor reply }
+  - { from: amb, to: journal, label: record outcome, async: true, source: "../pattern.md#After, it records the outcome" }
+  - phase: Answer
+  - { from: amb, to: amb, label: "sanitise, translate", async: true, source: "../pattern.md#sanitises it before any core agent sees it" }
+  - { reply: amb, label: one of four outcomes, source: "../pattern.md#Four outcomes, always" }

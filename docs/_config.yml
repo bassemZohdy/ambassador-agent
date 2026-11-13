@@ -1,0 +1,4 @@
+title: The Ambassador Agent pattern
+description: One accountable, autonomous agent per external-system boundary. A design pattern for agentic integration platforms.
+exclude:
+  - plans

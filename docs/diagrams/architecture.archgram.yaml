@@ -1,0 +1,29 @@
+archgram: 1
+title: The Ambassador Agent pattern
+description: >-
+  A core agent opens a task with the ambassador, the only path to an
+  external system. The task passes policy and admission, the ambassador
+  records its intent in the journal and only then acts on the external
+  system. Whatever comes back passes quarantine before the core agent
+  sees it. When too many tasks are waiting, the task is refused.
+direction: down
+nodes:
+  - { id: core, kind: agent, label: Core agent, note: your language, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: gate, kind: check, label: Policy and admission, note: refuse before crossing, frame: ambassador, source: ["../pattern.md#Refuses a task before the boundary is crossed", "../pattern.md#Controls how much work it takes on"] }
+  - { id: agent, kind: agent, label: Ambassador, note: acts for a principal, frame: ambassador, source: "../pattern.md#on each boundary and make it the only path across" }
+  - { id: journal, kind: database, label: Journal, note: "intent, then outcome", frame: ambassador, source: "../pattern.md#Records intent and outcome for every crossing" }
+  - { id: quarantine, kind: check, label: Quarantine, note: "data, never instructions", frame: ambassador, source: "../pattern.md#Treats everything from outside as data" }
+  - { id: external, kind: service, label: External system, note: vendor dialect, variant: external, source: "../pattern.md#many external systems you do not control" }
+frames:
+  - { id: ambassador, label: "One ambassador per boundary" }
+edges:
+  - { from: core, to: gate, label: open task, source: "../pattern.md#Only the core opens a task" }
+  - { from: gate, to: agent, label: admitted, source: "../pattern.md#One task at a time per resource" }
+  - { from: agent, to: journal, label: record intent, source: "../pattern.md#it records its intent" }
+  - { from: agent, to: external, label: act, source: "../pattern.md#Before an ambassador acts on the external system" }
+  - { from: external, to: quarantine, label: "replies, events", source: "../pattern.md#Treats everything from outside as data" }
+  - { from: quarantine, to: core, label: "outcome, notice", style: dashed, source: "../pattern.md#sanitises it before any core agent sees it" }
+flows:
+  - { name: record the intent, steps: [core, gate, agent, journal] }
+  - { name: then act and answer, steps: [agent, external, quarantine, core] }
+  - { name: refused when full, steps: [core, gate], stop: gate }

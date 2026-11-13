@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ambassador-agent"
+version = "0.1.0"
+description = "Reference implementation of the Ambassador Agent pattern: one accountable agent per external-system boundary."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Bassem Zohdy" }]
+keywords = ["agents", "design-pattern", "integration", "a2a", "anti-corruption-layer"]
+dependencies = []
+
+[project.optional-dependencies]
+adk = ["google-adk>=2.14"]
+langgraph = ["langgraph>=1.2"]
+a2a = ["a2a-sdk>=1.3"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ambassador_agent"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["src", "."]

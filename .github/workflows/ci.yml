@@ -1,0 +1,39 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Checker tests
+        run: python3 tools/test_check_docs.py
+      - name: Links and anchors
+        run: python3 tools/check_docs.py .
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reference/python
+    strategy:
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      - name: Core tests (no SDKs)
+        run: pytest -q
+      - run: pip install -e ".[adk,langgraph,a2a]"
+      - name: Adapter tests
+        run: pytest -q
+      - run: python examples/shipments.py
