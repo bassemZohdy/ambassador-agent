@@ -44,14 +44,17 @@ An ambassador does not ask a person or the core what to do. If it cannot decide,
 
 ## Designing a capability
 
-For each capability with a side effect, answer four questions. The answers are part of the contract.
+For each capability with a side effect, answer five questions. The answers are part of the contract.
 
 | Question | Options | How to choose |
 |---|---|---|
 | If the ambassador stops mid-action, or a request times out, how is the unknown outcome settled? | Verify, resend, stop | Verify if the external system can report on an operation id. Resend only if it ignores a repeated operation id (effectively once) or a duplicate is harmless (at least once, knowingly). Otherwise stop: outcomes will sometimes be unknown and a person settles them |
 | What does the external system accept as an idempotency key or client reference? | The operation id goes there | If it accepts none, no capability on it can be better than at-least-once or stop |
 | Can it be compensated? | Compensable, partly, not | Be honest: a refund is "partly", a delivered message is "not" |
-| What is the resource? | A key such as an order number or an account | Tasks for the same key run one at a time. Choose the narrowest key that prevents a race |
+| What is the resource? | A key such as an order number or an account | Tasks for the same key run one at a time, and an open unknown outcome holds the key. Choose the narrowest key that prevents a race |
+| If you verify, can an empty lookup be believed? | Absence is final, or not | Yes only if the external system keeps the operation id longer than recovery takes, and either refuses a request that arrives late or you declare a settle window longer than any request can be in flight. If you cannot say yes, an empty lookup ends as `unknown`, held for the owner |
+
+Three declarations are optional and governance only: the data classification, the audit retention, and whether a person must approve the capability. Approval is a scope the principal holds (`approval:<capability>`). The ambassador checks it and does not ask anyone.
 
 ## Setting admission limits
 
@@ -98,11 +101,18 @@ Choose **on demand** if it only reacts, and something reliable activates it: a t
 
 The two choices are independent, and all four combinations are valid.
 
+### One copy or several?
+
+Running one copy is a single point of failure for the boundary. Running several needs mutual exclusion per resource between copies, a shared journal and a claim on each open intent. See [more than one replica](pattern.md#more-than-one-replica) for the three options. On Kubernetes, for instance, a partition by resource key is usually a stateful workload with routing in front, and one active replica is a leader-elected deployment. Neither is required by the pattern.
+
 ## Checklist before production
 
 - [ ] A named owner in the description
 - [ ] Durable journal and idempotency record, with a place to list unresolved outcomes and a named owner who is told
-- [ ] Reconciliation on restart tested by stopping the ambassador mid-action
+- [ ] Reconciliation on restart tested by stopping the ambassador mid-action, at each step of a task
+- [ ] For each `verify` capability: the "absence is final" and settle-window declarations agreed with the external system's owner
+- [ ] A client rule that an `unknown` is never retried under a new key
+- [ ] If more than one copy runs: mutual exclusion across copies, a shared journal and a claim on open intents, tested under delay
 - [ ] Credential broker that propagates the end user's identity
 - [ ] Policy reviewed for every irreversible capability
 - [ ] Admission limits set, and a refusal carries a retry hint

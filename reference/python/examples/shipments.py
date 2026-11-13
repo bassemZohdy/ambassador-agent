@@ -174,6 +174,8 @@ def build_ambassador(
     resilience: Resilience | None = None,
     admission: Admission | None = None,
     on_unknown: Unknown = Unknown.VERIFY,
+    absence_final: bool = True,  # the Courier rejects a booking request older than its own timeout
+    settle_after: float = 0.0,  # seconds to wait before believing "no record"; zero because the fake is synchronous
 ) -> Ambassador:
     spec = AmbassadorSpec(
         name="courier-ambassador",
@@ -205,6 +207,10 @@ def build_ambassador(
             resource=lambda payload: str(payload.get("order_number")),
             on_unknown=on_unknown,
             verify=verify_booking,
+            absence_is_final=absence_final and on_unknown is Unknown.VERIFY,
+            settle_after_seconds=settle_after,
+            data_classification="personal",
+            audit_retention_days=365,
             compensation=Compensation.COMPENSABLE,
             compensated_by="cancel_shipment",
         )
@@ -273,6 +279,7 @@ async def main() -> None:
     office.lose_reply_next = True
     held = await careful.perform(book("O-6000", "k6"))
     show("7. Reply lost and nothing can check: unknown, no fallback, a repeat is held", [held.to_dict(), (await careful.perform(book("O-6000", "k6"))).to_dict()])
+    show("7b. While it is open, a retry under a new key for the same order is refused", (await careful.perform(book("O-6000", "k6-again"))).to_dict())
     [open_item] = await careful.unresolved()
     show("8. The owner finds out from the courier's records and resolves it", (await careful.resolve(open_item["operation_id"], Outcome.SUCCEEDED, by="integrations-team@example.org", note="found in the courier portal")).to_dict())
 

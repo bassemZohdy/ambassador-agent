@@ -36,7 +36,7 @@ Defined in `ambassador_agent.ports` as `typing.Protocol` classes. Implement the 
 | `Connector` | `invoke(operation, payload, credentials)`, `healthy()` | none: you write one per external system |
 | `CredentialBroker` | `credentials_for(principal, capability)` | `StaticCredentials` |
 | `Policy` | `refuse_reason(request, capability)` | `ScopePolicy` |
-| `Journal` | `begin(intent)`, `finish(id, outcome)`, `unfinished()`, `record(entry)`, `recall(key)`, `remember(key, result)`, `unresolved()`, `resolve(operation_id, result, by, note)` | `InMemoryJournal` |
+| `Journal` | `begin(intent)`, `finish(id, outcome)`, `unfinished()`, `record(entry)`, `recall(key)`, `remember(key, result)`, `unresolved()`, `resolve(operation_id, result, by, note)` | `InMemoryJournal`, and the durable `SqliteJournal` |
 | `Sanitizer` | `clean(data)` | `QuarantineSanitizer` |
 | `Subscriber` | `notify(notice)` | `ListSubscriber` |
 | `Reasoner` | `advise(request, error, attempts)`, `think(instruction, context)` | none: required only above L0 |
@@ -44,6 +44,10 @@ Defined in `ambassador_agent.ports` as `typing.Protocol` classes. Implement the 
 A connector signals failure with `TransientError` (worth retrying) or `PermanentError` (not). A `TransientError` says whether the action `may_have_executed`: a refused connection did not, a timeout after sending may have, and that is the default. Only the first can be retried or redirected straight away. The second is settled first, by the capability's `verify`, `resend` or `stop`.
 
 A handler sends `ctx.operation_id` to the external system as its idempotency key or client reference. It is the same on every try.
+
+A `Capability` also declares what makes a lookup believable and what governs it. `absence_is_final` says the external system refuses late requests, so an empty `verify` can be believed. `settle_after_seconds` is the wait before a lookup is believed. Without `absence_is_final`, an empty lookup ends as `unknown`. A capability that names a `resource` is held while an `unknown` on it is open. `data_classification`, `audit_retention_days` and `requires_approval` are governance declarations that `describe()` publishes; only the last one is enforced, as the scope `approval:<capability>`.
+
+`ambassador_agent.durable.SqliteJournal(path)` implements the `Journal` port on SQLite from the standard library. Each call commits before it returns. Opening the same file from a new process returns the intents the old one never finished.
 
 ## Runtime adapters (how a platform calls the ambassador)
 

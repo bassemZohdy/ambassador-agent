@@ -84,9 +84,9 @@ Across a boundary the ambassador does not control, exactly-once effects are impo
 
 Every task has an **operation id**: its idempotency key, or one the ambassador makes. It is journalled with the intent and sent to the external system as its own idempotency key or client reference, the same on every retry, resend and recovery. That is what lets the other side deduplicate, or be asked. `resend` is only effectively-once if the other side deduplicates; otherwise it quietly means at-least-once.
 
-Verification is only as strong as the external system's consistency, because "no record" from a system that is slow to show its own writes is weaker than it looks. A capability that cannot rely on it should declare `stop`.
+**When "no record" can be believed.** An empty lookup does not prove the action will never happen: a request can still be in flight, or the other side can be slow to show its own writes. So a capability that verifies also declares whether **absence is final** (the external system refuses a request that arrives late) and a **settle window** (a wait before a lookup is believed). It must also be true that the lookup is by operation id and that the other side keeps the id longer than recovery takes. The ambassador acts on the declarations and cannot check them, so the owner answers for them. Without them, an empty lookup ends as `unknown`. A capability that cannot meet them should declare `stop`.
 
-**An unknown outcome is an exception for a person.** The task ends as `unknown` with its operation id, and no other channel is offered. A repeat of the task gets `unknown` back and is not sent again. The ambassador lists its open exceptions for the named owner, who finds out from the external system's own records and records `succeeded` or `failed`, with their name and a note. A `failed` answer is the first moment another channel may be offered.
+**An unknown outcome is an exception for a person.** The task ends as `unknown` with its operation id, and no other channel is offered. A repeat of the task gets `unknown` back and is not sent again, and the open exception holds its resource: a new task for the same order, even under a new idempotency key, is refused as `resource_held`. Clients follow the same rule from their side: an `unknown` is never retried under a new key. The ambassador lists its open exceptions for the named owner, who finds out from the external system's own records and records `succeeded` or `failed`, with their name and a note. A `failed` answer is the first moment another channel may be offered.
 
 A capability with several steps extends the same journal to every step, so a restart resumes at the step that was interrupted. That is durable execution; the single-step journal is its smallest form. The journal is also the audit record: who asked, for whom, what was sent and what came back.
 
@@ -119,10 +119,14 @@ Limits per caller and per cost usually also sit in a gateway in front. The two c
 |---|---|---|
 | Resource | A key such as an order number | Tasks for the same key run one at a time |
 | Delivery class | Verify, resend, stop | How an unknown outcome is settled, after a crash or a timeout |
+| Absence is final, settle window | Yes or no, and a wait | Whether an empty lookup can be believed |
 | Compensation | Compensable, partly, not | Lets the core plan an action that spans several boundaries |
 | Fallback | A channel and instructions | Offered beside `failed`, never beside `unknown` |
+| Governance | Data classification, audit retention, approval required | Published for owners and reviewers. Approval is enforced as a scope the principal holds |
 
 Compensation is not undo. A refund after a charge is "partly"; a delivered message is "not". The core orchestrates an action across boundaries, and each ambassador is a participant. A multi-step capability inside one boundary is the ambassador's own responsibility.
+
+**What is fixed, and what is a choice.** Six rules are not negotiable: only the core opens a task; the intent is journalled before the action and the outcome after; a timeout is not a failure; no fallback is offered while the outcome is unknown; the operation id never changes; and no two tasks for one resource are in flight at once. Retries, the circuit breaker, pacing, queue size, the settle window, how much intelligence is used and whether approval is needed are the owner's policy. If changing a setting can cause a duplicate or report a guess as a fact, it is a rule.
 
 ## An agent that may not need a model
 
@@ -190,7 +194,7 @@ It composes with what you already have. A gateway sits in front. An MCP tool mak
 - One more hop, and a model call on some paths if intelligence is used.
 - A contract you have to design. A thin pass-through contract gives none of the benefits.
 - A durable journal, even for the simplest ambassador.
-- A single path to each system, which must therefore be run redundantly.
+- A single path to each system, which must therefore be run redundantly. That needs more than a second copy: mutual exclusion per resource across copies, a shared journal, and a claim on each open intent.
 - With no person in the loop, policy is the only safeguard before an irreversible action.
 
 Use the pattern when at least two of these hold: several core agents use the system, calls have side effects, you do not control its availability or quota, its replies contain free text a model will read, or someone will ask "who did this, for whom, and when?" For a read-only, internal, single-consumer lookup, a plain tool is enough.
@@ -199,10 +203,10 @@ Use the pattern when at least two of these hold: several core agents use the sys
 
 This is version 0.2 of a proposal. It has no documented use in production yet.
 
-1. **Redundancy and admission.** One task at a time per resource, across several replicas, needs a shared lock or partitioning. The pattern does not yet describe it.
+1. **Redundancy and admission.** The pattern lists what several replicas need and three ways to get mutual exclusion: partition by resource key, one active replica, or a lease with fencing. None of it is implemented in the reference, which is tested in one process only.
 2. **The limit of autonomy.** When an outcome is unknown and the external system cannot be asked, the ambassador reports `unknown`, holds repeats and lists the exception, and a person must resolve it. How long it may be held, who is alerted, and whether a task type may set a time limit before escalating are not yet described.
 3. **Policy.** The pattern does not yet say how policy is defined or reviewed.
-4. **`unknown` in A2A.** A2A has no state for "may have happened". It maps to `failed` with the outcome in extension data, so a client that ignores the extension may read a plain failure and retry. The ambassador holds repeats of the same task, but a client that retries under a new key defeats that.
+4. **`unknown` in A2A.** A2A has no state for "may have happened". It maps to `failed` with the outcome in extension data, so a client that ignores the extension may read a plain failure and retry. The ambassador holds repeats of the same task and, for a capability that names a resource, the resource too. A client that retries under a new key against a capability with no resource still defeats it.
 
 ## Read it and break it
 

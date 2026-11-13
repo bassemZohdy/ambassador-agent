@@ -141,6 +141,11 @@ class Ambassador:
                     "on_unknown": c.on_unknown.value,
                     "compensation": c.compensation.value,
                     "compensated_by": c.compensated_by,
+                    "absence_is_final": c.absence_is_final,
+                    "settle_after_seconds": c.settle_after_seconds,
+                    "data_classification": c.data_classification,
+                    "audit_retention_days": c.audit_retention_days,
+                    "requires_approval": c.requires_approval,
                 }
                 for c in self.capabilities
             ],
@@ -171,6 +176,13 @@ class Ambassador:
             replay = await self._replay(request, capability, pending=True)
             if replay:
                 return replay
+            held = await self._held_by(request, capability)
+            if held:
+                return await self._refuse(
+                    request,
+                    "resource_held",
+                    f"an earlier action on this resource has an unknown outcome (operation {held}); its owner must settle it first",
+                )
             if time.monotonic() < self._open_until:
                 error = BoundaryError("circuit_open", f"{self.spec.boundary} is marked unavailable", retryable=True)
                 result = _failed(capability, error, attempts=0, operation_id=operation_id)  # nothing was sent
@@ -203,6 +215,22 @@ class Ambassador:
             return None
         await self.journal.record({**self._describe(request, earlier.operation_id), "kind": "replayed", "outcome": earlier.outcome.value})
         return ActionResult(earlier.outcome, earlier.data, earlier.error, earlier.fallback, earlier.attempts, replayed=True, operation_id=earlier.operation_id)
+
+    async def _held_by(self, request: ActionRequest, capability: Capability) -> str | None:
+        """An open unknown outcome holds its resource, so a retry under a new key cannot cross the boundary.
+
+        Only capabilities that declare a resource are held. Returns the operation id doing the holding.
+        """
+        if not (capability.side_effect and capability.resource):
+            return None
+        key = capability.resource(request.payload)
+        for entry in [*await self.journal.unfinished(), *await self.journal.unresolved()]:
+            if entry.get("ambassador") != self.spec.name or entry.get("resource") != key:
+                continue
+            if request.idempotency_key and entry.get("idempotency_key") == request.idempotency_key:
+                continue  # the same task: answered from the record, not held
+            return entry.get("operation_id")
+        return None
 
     async def _admit(self, request: ActionRequest, capability: Capability) -> tuple[asyncio.Lock | None, BoundaryError | None]:
         """Admission: one task at a time per resource, a bounded wait, and a refusal when full."""
@@ -248,8 +276,10 @@ class Ambassador:
         r = self._resilience
         ctx = await self._context(request, capability, operation_id)
         attempts, error = 0, BoundaryError("unknown", "no attempt made")
+        unsettled = False  # an earlier attempt may have taken effect and that has not been ruled out
         while attempts < r.max_attempts:
             attempts += 1
+            sent_at = time.monotonic()
             try:
                 raw = await capability.handler(ctx, request.payload)
                 self._consecutive_failures = 0
@@ -258,10 +288,10 @@ class Ambassador:
                 error = BoundaryError("external_unavailable", str(exc), retryable=True)
                 if capability.side_effect and exc.may_have_executed:
                     # A timeout is not a "no". Settle what happened before anything is retried or redirected.
-                    settled = await self._settle_ambiguous(ctx, capability, request, error, attempts)
+                    settled, absent_proven = await self._settle_ambiguous(ctx, capability, request, error, attempts, sent_at)
                     if settled is not None:
                         return settled
-                    # Otherwise it is now known to be safe to send again.
+                    unsettled = not absent_proven  # otherwise it is now safe to send again
             except PermanentError as exc:
                 error = BoundaryError(exc.code, str(exc), retryable=False)
 
@@ -276,28 +306,34 @@ class Ambassador:
             if attempts < r.max_attempts:
                 await asyncio.sleep(r.backoff_seconds * 2 ** (attempts - 1))
         self._note_failure()
+        if unsettled:
+            # Out of attempts while an earlier one may still land. "Failed" would be a guess and a fallback a second booking.
+            return ActionResult(Outcome.UNKNOWN, error=_unknown_error(error), attempts=attempts, operation_id=operation_id)
         return _failed(capability, error, attempts, operation_id)
 
     async def _settle_ambiguous(
-        self, ctx: BoundaryContext, capability: Capability, request: ActionRequest, error: BoundaryError, attempts: int
-    ) -> ActionResult | None:
+        self, ctx: BoundaryContext, capability: Capability, request: ActionRequest, error: BoundaryError, attempts: int, sent_at: float
+    ) -> tuple[ActionResult | None, bool]:
         """The action may have taken effect. Decide what is known, using only what the capability declared.
 
-        Returns a final result, or None when it is now safe to send the action again. The same rule
-        runs after a timeout and after a crash, so the two cannot disagree.
+        Returns (result, absent_proven). A result is final. With none, it is safe to send the same operation
+        id again, and absent_proven says whether the action is also proven never to have happened.
         """
         unknown = ActionResult(Outcome.UNKNOWN, error=_unknown_error(error), attempts=attempts, operation_id=ctx.operation_id)
         if capability.on_unknown is Unknown.RESEND:
-            return None  # the external system ignores a repeated operation id, so sending again is safe
+            return None, False  # the external system ignores a repeated operation id, so sending again is safe
         if capability.on_unknown is Unknown.STOP or capability.verify is None:
-            return unknown  # cannot be settled from here: no resend, no other channel
+            return unknown, False  # cannot be settled from here: no resend, no other channel
+        wait = capability.settle_after_seconds - (time.monotonic() - sent_at)
+        if wait > 0:
+            await asyncio.sleep(wait)  # let a request still in flight land before believing "no record"
         try:
             found = await capability.verify(ctx, request.payload)
         except (TransientError, PermanentError):
-            return unknown  # asked, and could not be told
+            return unknown, False  # asked, and could not be told
         if found is None:
-            return None  # the external system has no record of it: confirmed not done, safe to send again
-        return ActionResult(Outcome.SUCCEEDED, self._sanitizer.clean(found), attempts=attempts, operation_id=ctx.operation_id)
+            return None, capability.absence_is_final
+        return ActionResult(Outcome.SUCCEEDED, self._sanitizer.clean(found), attempts=attempts, operation_id=ctx.operation_id), True
 
     def _note_failure(self) -> None:
         self._consecutive_failures += 1
@@ -305,6 +341,12 @@ class Ambassador:
             self._open_until = time.monotonic() + self._resilience.breaker_cooldown_seconds
 
     async def _settle(self, intent_id: str, request: ActionRequest, capability: Capability | None, result: ActionResult, reconciled: bool = False) -> None:
+        # A success is remembered so a repeat is answered, not re-sent. So is an unknown, so a repeat is held
+        # rather than sent a second time while the owner finds out what happened. The result is remembered
+        # BEFORE the intent is closed: a crash between the two leaves an open intent that recovery settles,
+        # never a closed intent whose result a repeat cannot find.
+        if capability and capability.side_effect and request.idempotency_key and result.outcome in (Outcome.SUCCEEDED, Outcome.UNKNOWN):
+            await self.journal.remember(request.idempotency_key, result)
         await self.journal.finish(
             intent_id,
             {
@@ -316,10 +358,6 @@ class Ambassador:
                 "operation_id": result.operation_id,
             },
         )
-        # A success is remembered so a repeat is answered, not re-sent. So is an unknown, so a repeat
-        # is held rather than sent a second time while the owner finds out what happened.
-        if capability and capability.side_effect and request.idempotency_key and result.outcome in (Outcome.SUCCEEDED, Outcome.UNKNOWN):
-            await self.journal.remember(request.idempotency_key, result)
 
     async def _refuse(self, request: ActionRequest, code: str, message: str, error: BoundaryError | None = None) -> ActionResult:
         error = error or BoundaryError(code, message)
@@ -327,8 +365,10 @@ class Ambassador:
         return ActionResult(Outcome.REJECTED, error=error)
 
     def _describe(self, request: ActionRequest, operation_id: str | None = None) -> dict[str, Any]:
+        capability = self._capabilities.get(request.capability)
         return {
             "operation_id": operation_id,
+            "resource": capability.resource(request.payload) if capability and capability.resource else None,
             "ambassador": self.spec.name,
             "boundary": self.spec.boundary,
             "owner": self.spec.owner,
@@ -366,13 +406,19 @@ class Ambassador:
             elif capability.on_unknown is Unknown.RESEND:
                 result = await self._attempt(request, capability, operation_id)  # the external system ignores a repeated operation id
             else:  # VERIFY
+                if time.time() - float(intent.get("at", 0)) < capability.settle_after_seconds:
+                    continue  # too soon to believe "no record": a request may still be in flight. Try again later
                 try:
                     found = await capability.verify(await self._context(request, capability, operation_id), request.payload)  # type: ignore[misc]
                 except TransientError:
                     continue  # cannot tell yet; leave the intent open and try again later
-                if found is None:
-                    error = BoundaryError("not_received", "the external system has no record of the action", retryable=True)
+                if found is None and capability.absence_is_final:
+                    error = BoundaryError("not_received", "the external system has no record of the action and rejects late requests", retryable=True)
                     result = _failed(capability, error, 0, operation_id)
+                elif found is None:
+                    # No record is not proof: a late request could still land. Hold it for the owner, offer nothing.
+                    error = BoundaryError("not_received_unproven", "the external system has no record yet, and may still receive it")
+                    result = ActionResult(Outcome.UNKNOWN, error=_unknown_error(error), operation_id=operation_id)
                 else:
                     result = ActionResult(Outcome.SUCCEEDED, self._sanitizer.clean(found), attempts=1, operation_id=operation_id)
             await self._settle(intent["intent_id"], request, capability, result, reconciled=True)
@@ -447,7 +493,10 @@ class Ambassador:
 
 def _unknown_error(cause: BoundaryError | None = None) -> BoundaryError:
     detail = f" ({cause.message})" if cause and cause.message else ""
-    return BoundaryError("outcome_unknown", "the action may or may not have reached the external system" + detail)
+    return BoundaryError(
+        "outcome_unknown",
+        "the action may or may not have reached the external system" + detail + ". Do not retry it or try another channel; its owner settles it.",
+    )
 
 
 def _failed(capability: Capability, error: BoundaryError, attempts: int, operation_id: str | None) -> ActionResult:

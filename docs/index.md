@@ -55,6 +55,8 @@ An ambassador never starts an exchange with the core. The core opens a subscript
 | Principal | Who the task is for. The ambassador acts for the principal, never as itself |
 | Outcome | What is known about the action: succeeded, failed (known not done), rejected, or unknown (may have been done) |
 | Journal | The durable record of every crossing: intent before, outcome after |
+| Operation id | The identifier sent to the external system on every try, so it can deduplicate or be asked. The idempotency key, or one the ambassador makes |
+| Reconciliation | Settling an action whose outcome was not recorded: ask the external system, send the same operation id again, or hand it to the owner |
 | Admission | The duty to limit work: one task at a time per resource, a bounded wait, refusal when full |
 | Notice | A fact from the external system, translated and sanitised, sent on a subscription |
 | Compensation | Whether a capability's business effect can be reversed, declared in the contract |
@@ -78,10 +80,10 @@ A small reference implementation in Python lives in the repository's `reference/
 
 This is version 0.2 of a proposed pattern. It has no documented use in production yet, and the following questions are open:
 
-1. **Redundancy and admission.** An ambassador should be run redundantly, and it should run one task at a time per resource. With more than one replica that needs a shared lock or partitioning, which the pattern does not yet describe.
+1. **Redundancy and admission.** The pattern now lists what more than one replica needs (mutual exclusion per resource across copies, a shared journal, a claim on each open intent) and three ways to get mutual exclusion. None of it is implemented in the reference, which is tested in one process only, and none of it has run in production.
 2. **The limit of autonomy.** When an outcome is unknown and the external system cannot be asked, the ambassador reports `unknown`, holds repeats and lists the exception. A person must resolve it. How long it may be held, who is alerted, and whether a task type may set a time limit before escalating are not yet described.
 3. **Policy.** With no person in the loop, policy is the only safeguard before an irreversible action. The pattern does not yet say how policy is defined or reviewed.
-4. **`unknown` in A2A.** A2A has no state for "may have happened". It maps to `failed` with the outcome in extension data, so a client that ignores the extension may read it as a plain failure. The ambassador holds repeats of the same task, but a client that retries under a new key defeats that.
+4. **`unknown` in A2A.** A2A has no state for "may have happened". It maps to `failed` with the outcome in extension data, so a client that ignores the extension may read it as a plain failure. The ambassador holds repeats of the same task and, for a capability that names a resource, holds the resource too. A client that retries under a new key against a capability with no resource still defeats it.
 
 Counter-examples and known uses are the most useful contributions. The repository's issue templates ask for both.
 

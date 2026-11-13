@@ -60,6 +60,8 @@ The core system talks to an ambassador through **tasks**. The pattern defines th
    - `unknown`: it may or may not have been carried out, and it must be reconciled.
 
    A timeout after a request was sent is `unknown`, never `failed`. Core agents never interpret a vendor error.
+
+   **A client never retries an `unknown` task under a new idempotency key, and never sends it down another channel.** A new key is a new request for the same thing, and it can double the effect. The ambassador backs the rule up (see unknown outcomes below), but a client that follows it does not depend on that.
 5. **What to do next travels beside the outcome, never in place of it.** A result may carry a fallback channel, a retry hint or the operation id to reconcile by. These are instructions. The outcome stays a fact. A fallback channel is attached only when the action is known not to have been done, and never while the outcome is `unknown`.
 6. **News from outside arrives as notices on a subscription.** The core opens a long-lived subscription task; the ambassador sends translated, sanitised notices into it. A notice is a fact, never a command. If nobody is subscribed, the ambassador records the event and does not hold it: keeping undelivered events is the job of the messaging layer.
 
@@ -95,19 +97,27 @@ The journal does not make an action happen exactly once. Across a boundary the a
 
 **Reconciliation** follows what the capability declared:
 
-- **verify**: ask the external system whether it received the operation id. A record means `succeeded`. No record means `failed`, and a retry or another channel is now safe. If the external system cannot answer, the outcome is `unknown`.
+- **verify**: ask the external system whether it received the operation id. A record means `succeeded`. No record means `failed`, and a retry or another channel is now safe, but only when "no record" can be believed (see below). If it cannot be believed, or the external system cannot answer, the outcome is `unknown`.
 - **resend**: send the same operation id again.
 - **stop**: report `unknown`. Nothing is sent and nothing is offered.
 
-Verification is only as strong as the external system's consistency. "No record" from a system that is slow to show its own writes is weaker than it looks. A capability that cannot rely on it should declare `stop`.
+**When "no record" can be believed.** A lookup that finds nothing is not proof that the action will never happen. A request can still be in flight, or the other side can be slow to show its own writes. A capability that declares `verify` is accountable for these four conditions:
+
+1. The lookup is by the operation id, not a guess from the payload.
+2. The answer is current. The external system shows its own writes at once, or the capability declares a **settle window**: a wait, counted from the send, that is longer than any request can still be in flight or any replication can lag. The ambassador waits it out before it believes a lookup, and recovery that runs sooner leaves the intent open.
+3. The external system keeps the operation id longer than recovery can take. An idempotency key that expires before the restart turns "no record" into "forgotten".
+4. A request that arrives late is refused, or the settle window outlives it. The capability declares this as **absence is final**.
+
+The ambassador acts on the declarations. It cannot check that they are true, so the owner answers for them. A capability that does not declare absence final gets `unknown` from an empty lookup, held for the owner like any other. A capability that cannot meet the conditions at all should declare `stop`.
 
 **Unknown outcomes are exceptions for a person.** An outcome that nothing here can settle is not hidden and not retried. It is held:
 
 1. The task ends as `unknown`, with the operation id. No fallback channel is offered, because the action may already have happened.
 2. A repeat of the same task gets `unknown` back. It is not sent again while the exception is open.
-3. The ambassador lists its open exceptions for the named owner.
-4. The owner finds out from the external system's own records and records the answer, with their name and a note. The answer is `succeeded` or `failed`, and it goes in the journal.
-5. A `failed` answer is the first moment another channel may be offered, and the fallback is attached to it. A repeat of a `succeeded` task gets that answer.
+3. **The open exception holds its resource.** A new task for the same resource is `rejected` with `resource_held`, not retryable, even under a new idempotency key, until the exception is settled. A capability that names no resource cannot be held this way, so for it the client rule above is the only protection.
+4. The ambassador lists its open exceptions for the named owner.
+5. The owner finds out from the external system's own records and records the answer, with their name and a note. The answer is `succeeded` or `failed`, and it goes in the journal.
+6. A `failed` answer is the first moment another channel may be offered, and the fallback is attached to it. It also lifts the hold. A repeat of a `succeeded` task gets that answer.
 
 A capability with several steps, or one that waits for a later event, extends the same journal to every step, so a restart resumes at the step that was interrupted. This is durable execution; the single-step journal is its smallest form.
 
@@ -117,11 +127,11 @@ The journal is also the audit record: who asked, for whom, what was sent, what c
 
 | Duty | What the ambassador does |
 |---|---|
-| **Contract** | Publishes capabilities in the core system's language. Each one states whether it has a side effect, its delivery class (how an unknown outcome is settled), and whether it can be compensated |
+| **Contract** | Publishes capabilities in the core system's language. Each one states whether it has a side effect, its delivery class (how an unknown outcome is settled, and whether "no record" is final), whether it can be compensated, and optionally its data classification, audit retention and whether a person must approve it |
 | **Identity** | Acts for a named principal and exchanges that identity for credentials the external system accepts. It never acts as itself by default |
 | **Policy** | Refuses a task before the boundary is crossed when the principal may not ask for it. With no person to ask, this check carries the full weight for irreversible actions |
 | **Admission** | Controls how much work it takes on. See below |
-| **Journal** | Records intent and outcome for every crossing, in both directions, and keeps unknown outcomes listed until an owner settles them |
+| **Journal** | Records intent and outcome for every crossing, in both directions, and keeps unknown outcomes listed, with their resource held, until an owner settles them |
 | **Quarantine** | Treats everything from outside as data, never as instructions, and sanitises it before any core agent sees it |
 | **Fallback** | Offers another channel when the external system cannot finish the job and the action is known not to have been done. Never while the outcome is unknown |
 
@@ -147,6 +157,52 @@ Each capability with a side effect declares one of three values:
 | **Not compensable** | Nothing reverses it (a message that has been delivered) |
 
 Compensation is not undo. The declaration exists so the core can plan an action that spans several boundaries. The core orchestrates such an action; each ambassador is a participant. A multi-step capability inside one boundary is the ambassador's own responsibility: it journals each step and compensates its own completed steps if a later one fails.
+
+#### What the contract declares
+
+Governance is carried in the contract, so owners and reviewers read it where the capability is defined. Only the first group changes what the ambassador does. The second group is declared, published and, for approval, enforced as a scope check. The rest is for people and tools.
+
+| Group | Declaration | Effect |
+|---|---|---|
+| Behaviour | Side effect, required scopes, resource key, delivery class, settle window, absence is final, fallback, compensation | Changes how a task is admitted, journalled, settled and answered |
+| Approval | Requires approval | The principal must hold the scope `approval:<capability>`. The approval is granted outside the ambassador, which only checks that it was |
+| Governance | Data classification, audit retention | Published in the contract; the ambassador does not act on them. A deployment can use them to choose where the journal is kept and for how long |
+
+The risk of a capability is not a separate field. It follows from the side effect and the compensation value: an irreversible side effect is the highest risk, a read is the lowest.
+
+### Invariants and policies
+
+The pattern fixes a few rules and leaves everything else to the owner. The test is simple: if changing a setting can cause a duplicate or report a guess as a fact, it is an invariant. If it only changes speed, cost or load, it is a policy.
+
+**Invariants.** An implementation that breaks one is not an ambassador.
+
+1. Only the core opens a task.
+2. The intent is journalled before the action, and the outcome after.
+3. A timeout after a request was sent is not a failure.
+4. No fallback channel is offered while the outcome is unknown.
+5. The operation id is the same on every retry, resend and recovery.
+6. No two tasks for the same resource are in flight at once.
+
+**Policies.** The owner chooses these per capability or per deployment: retry count and backoff, the circuit breaker, pacing, the size of the wait queue and the fair share, the length of a settle window, how much intelligence is used, and whether approval is needed.
+
+### More than one replica
+
+The ambassador is a single point of failure for its boundary, so a real deployment runs more than one copy. The single-process rules then need support from outside, because a lock in memory and a journal in one process stop being enough:
+
+- **Mutual exclusion per resource across replicas.** The "one task at a time" rule must hold between copies.
+- **One shared journal**, so every replica sees every open intent and every remembered result. A repeat that lands on another replica is still answered from the record.
+- **A claim on each open intent**, so only one replica recovers it.
+- **An atomic check and write.** A journal that is read and then written is not enough: two replicas can both read "nothing open" before either writes. The reference's tests show this gap on purpose.
+
+The pattern does not choose how to get mutual exclusion. Three options fit:
+
+| Option | How | Cost |
+|---|---|---|
+| Partition by resource key | Route every task for a resource to the same replica | Needs routing, and a handover when a replica is lost |
+| One active replica | The others stand by; one is elected | Simple, and no scale-out |
+| Lease with fencing | A replica holds a time-limited lease on the resource and every crossing carries a fencing token that the journal or the external system checks | The strongest, and it needs a store that can check a token atomically |
+
+How these are run, on Kubernetes or elsewhere, is a deployment choice and not part of the pattern.
 
 ### Discovery
 
@@ -183,7 +239,7 @@ How an ambassador is run (whether it keeps state between tasks, whether it is al
 
 | | Item | Why |
 |---|---|---|
-| Optional | Human approval before an action | The ambassador is autonomous by definition. Add approval for specific irreversible actions if your rules need it |
+| Optional | Human approval before an action | The ambassador is autonomous by definition. Add approval for specific irreversible actions if your rules need it. The contract can declare it, and the ambassador checks that the approval scope is held; it does not ask anyone |
 | Optional | Try-confirm-cancel (reserve, then confirm) | Strong recovery, but only where the external system offers reservations |
 | Excluded | Ambassadors reacting to each other's events | Breaks one direction of initiation, invites loops, and leaves nobody owning the whole flow |
 | Excluded | Two-phase commit across boundaries | External systems do not join your transactions |
@@ -204,7 +260,7 @@ How an ambassador is run (whether it keeps state between tasks, whether it is al
 - One more hop, and a model call on some paths if intelligence is used.
 - A durable journal is required, even for the simplest ambassador.
 - Where the external system can neither deduplicate nor be asked, some outcomes will be unknown and a person must settle them. The pattern makes that visible. It cannot remove it.
-- The ambassador is a single point of failure for its boundary. Run it redundantly.
+- The ambassador is a single point of failure for its boundary. Run it redundantly, which needs more than a second copy (see more than one replica).
 - A capability contract must be designed. A thin pass-through contract gives none of the benefits.
 - Full autonomy puts the whole burden on policy: there is nobody to catch a bad decision at run time.
 - Too coarse a grouping produces a "god ambassador". See the decision guide.
@@ -215,7 +271,7 @@ How an ambassador is run (whether it keeps state between tasks, whether it is al
 2. No connector, credential or vendor schema outside an ambassador.
 3. Only the core opens a task. Ambassadors do not call the core or each other.
 4. Record the intent before the action, and the outcome after. A timeout is not a "no".
-5. Every task ends in one of four outcomes. None pauses. Another channel is offered only when the action is known not to have been done.
+5. Every task ends in one of four outcomes. None pauses. Another channel is offered only when the action is known not to have been done, and an `unknown` is never retried under a new key.
 6. Refuse when full. Never queue without a limit.
 7. Nothing from outside reaches a core agent unsanitised, and a notice is a fact, never a command.
 8. Start scripted. Add a model only when a failure mode demands it, and prefer a fast one.

@@ -32,6 +32,8 @@ Checked against the types in the A2A Python SDK, version 1.3. It is not a full r
 | Compensable, partly, or not, per capability | None | Extension |
 | Delivery class per capability: how an unknown outcome is settled | None | Extension |
 | Retry hint on a refusal | None | Extension |
+| Refusal because an unknown outcome holds the resource (`resource_held`) | None. A `rejected` task with an error code | Extension |
+| Governance declarations (data classification, audit retention, approval required) | None on the agent card. Approval maps to a security scope the principal holds | Extension |
 | Admission: one at a time per resource, bounded wait | None. The SDK starts each request concurrently and does not limit intake | Ambassador duty |
 | Acting for a principal | Security schemes exist. Acting on behalf of someone is not standardised | Ambassador duty |
 | Journal | None. A task store is not an audit record | Ambassador duty |
@@ -43,7 +45,7 @@ Two A2A task states are not used by the core pattern: `input-required` and `auth
 
 `unknown` means the action may or may not have been carried out. A2A has no state for that. The current choice is to end the task as `failed` and carry the real outcome, `unknown`, and the operation id in extension data.
 
-This is the weakest row in the mapping, and it is worth being plain about why. Mapping it to `completed` was rejected: a caller would read the task as done. Mapping it to `failed` has the opposite risk: a client that does not understand the extension reads a plain failure and may retry. Two things limit the harm. The ambassador answers a repeat of the same task, under the same idempotency key, with `unknown` and does not send it again. And no fallback channel is attached, so nothing invites the client to redo the action elsewhere. A client that retries under a new key, or acts on its own, defeats both.
+This is the weakest row in the mapping, and it is worth being plain about why. Mapping it to `completed` was rejected: a caller would read the task as done. Mapping it to `failed` has the opposite risk: a client that does not understand the extension reads a plain failure and may retry. Three things limit the harm. The ambassador answers a repeat of the same task, under the same idempotency key, with `unknown` and does not send it again. No fallback channel is attached, so nothing invites the client to redo the action elsewhere. And while the `unknown` is open, a new task for the same resource is refused as `resource_held`, even under a new key. The third only works for a capability that names a resource. A client that retries under a new key against a capability with no resource, or that acts on its own through another channel, defeats all three. The rule for clients is the same either way: an `unknown` is not retryable.
 
 A fallback channel and its instructions are a separate field. They travel beside `failed` when the action is known not to have been done, and are never attached to `unknown`.
 

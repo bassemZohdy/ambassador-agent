@@ -20,7 +20,10 @@ class ScopePolicy:
     """Refuses a task unless the principal holds every scope the capability requires."""
 
     def refuse_reason(self, request: ActionRequest, capability: Capability) -> str | None:
-        missing = capability.required_scopes - request.principal.scopes
+        required = capability.required_scopes
+        if capability.requires_approval:
+            required = required | {f"approval:{capability.name}"}  # the approval itself is granted outside the ambassador
+        missing = required - request.principal.scopes
         return f"missing scopes: {sorted(missing)}" if missing else None
 
 

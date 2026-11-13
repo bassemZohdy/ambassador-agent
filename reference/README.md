@@ -11,7 +11,7 @@ This folder exists to show that the [pattern](../docs/pattern.md) is buildable a
 cd reference/python
 pip install -e ".[dev]"
 python examples/shipments.py     # the worked example from docs/example.md
-pytest                         # core tests; adapter tests run if the SDKs are installed
+pytest                         # core, fault-injection and durable-journal tests; adapter tests run if the SDKs are installed
 pip install -e ".[adk,langgraph,a2a]" && pytest
 ```
 
@@ -19,7 +19,9 @@ pip install -e ".[adk,langgraph,a2a]" && pytest
 
 | Part | Status | What has been verified |
 |---|---|---|
-| Core (`ambassador.py`, `model.py`, `ports.py`, `defaults.py`) | Reference | Unit tests for every outcome, the journal rule and reconciliation, admission, notices and each intelligence level |
+| Core (`ambassador.py`, `model.py`, `ports.py`, `defaults.py`) | Reference | Unit tests for every outcome, the journal rule and reconciliation, admission, notices and each intelligence level, and for the preconditions on believing "no record", the resource hold on an open unknown and the contract's governance fields |
+| Fault injection (`tests/test_faults.py`) | Reference | A crash at each step of a task, a request that lands after the caller gave up, tasks racing for one resource, and seeded random runs that check the invariants once every fault has played out |
+| Durable journal (`durable.py`, `SqliteJournal`) | Reference | Tested by opening the same file from a second connection as a restart: recovery, remembered results, unknown outcomes and their resolution |
 | Worked example (`examples/shipments.py`) | Reference | Runs end to end in CI |
 | LangGraph adapter | Reference | Runs as a node in a compiled graph |
 | Google ADK adapter | Experimental | Tool declaration and a direct tool call. Not run inside a live agent with a model |
@@ -29,6 +31,6 @@ Experimental parts may change or be removed without notice. Do not copy them int
 
 ## Limits
 
-The in-memory journal, credential broker and sanitiser are stand-ins. The journal in particular does not survive a restart, which a real one must; the tests simulate a restart by handing the same journal to a new ambassador. Admission state and the record of seen events are also in memory, so this sketch runs as a single process. The adapters were last checked against `google-adk` 2.14, `langgraph` 1.2 and `a2a-sdk` 1.3. The autonomous level passes a reasoner to handlers but ships no planner. Multi-step capabilities are not journalled step by step: only the single-step form of the journal rule is implemented. Open `unknown` outcomes are listed by `unresolved()` and settled by `resolve()`, but nothing alerts the owner. The A2A binding returns the outcome as data and does not yet set task states or publish the proposed extension from [docs/protocol-mapping.md](../docs/protocol-mapping.md).
+The credential broker and sanitiser are stand-ins. The in-memory journal does not survive a restart; `SqliteJournal` does, and is a single-writer journal for one process, not a store shared by several. Admission state and the record of seen events are in memory, so this sketch runs as a single process. More than one replica is not implemented: the locks are in-process, and `tests/test_faults.py` pins two things on purpose, that a fast shared journal makes a second replica back off by accident, and that a slow one lets both through, because the check and the write are not atomic. The fault-injection tests are deterministic and in-process. They do not exercise a real network, a real store under contention or a real external system. The reference trusts a capability's declarations (absence is final, the settle window, the idempotency retention of the other side); it cannot check that they are true. The adapters were last checked against `google-adk` 2.14, `langgraph` 1.2 and `a2a-sdk` 1.3. The autonomous level passes a reasoner to handlers but ships no planner. Multi-step capabilities are not journalled step by step: only the single-step form of the journal rule is implemented. Open `unknown` outcomes are listed by `unresolved()` and settled by `resolve()`, but nothing alerts the owner. The A2A binding returns the outcome as data and does not yet set task states or publish the proposed extension from [docs/protocol-mapping.md](../docs/protocol-mapping.md).
 
 Implementations in other languages or on other platforms are welcome as sibling folders.

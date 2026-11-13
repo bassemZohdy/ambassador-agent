@@ -153,10 +153,22 @@ class Capability:
     # Contract: whether the business effect can be reversed, and by which capability.
     compensation: Compensation = Compensation.NOT
     compensated_by: str | None = None
+    # Reconciliation preconditions for `verify`. A lookup that finds no record proves the action will never
+    # happen only if the external system rejects late requests, or the settle window has outlived any request in flight.
+    absence_is_final: bool = False
+    settle_after_seconds: float = 0.0  # wait this long after sending before believing a lookup
+    # Governance (optional, declarative): carried in the contract so owners and reviewers can see them.
+    data_classification: str | None = None
+    audit_retention_days: int | None = None
+    requires_approval: bool = False  # the principal must hold the scope "approval:<capability>"
 
     def __post_init__(self) -> None:
         if self.on_unknown is Unknown.VERIFY and self.verify is None:
             raise ValueError(f"capability '{self.name}' declares on_unknown=verify but has no verifier")
+        if self.settle_after_seconds < 0:
+            raise ValueError(f"capability '{self.name}' has a negative settle window")
+        if self.absence_is_final and self.on_unknown is not Unknown.VERIFY:
+            raise ValueError(f"capability '{self.name}' says absence is final but does not verify")
         if self.compensation is Compensation.NOT and self.compensated_by:
             raise ValueError(f"capability '{self.name}' names a compensating capability but is not compensable")
 
