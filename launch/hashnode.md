@@ -100,7 +100,7 @@ A capability with several steps extends the same journal to every step, so a res
 | Admission | Controls how much work it takes on |
 | Journal | Records intent and outcome for every crossing |
 | Quarantine | Treats everything from outside as data, never as instructions, and sanitises it before a core agent sees it |
-| Fallback | Offers another channel when the external system cannot finish the job |
+| Fallback | Offers another channel when the external system cannot finish the job and the action is known not to have been done. Never while the outcome is unknown |
 
 ### Admission
 
