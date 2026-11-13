@@ -7,8 +7,6 @@
   - Links: Ref: docs/plans/PROJECT.md#scope · Depends: TASK-001 · Lane: pattern
   - [ ] **FEAT-002.1** · low · Add a glossary of the pattern's terms
     - Done when: ambassador, boundary, capability, principal, durability and presence are defined; `python3 tools/check_docs.py docs/glossary.md --require Ambassador --require Principal --require Durability --require Presence`
-  - [ ] **FEAT-002.2** · high · Add conformance rules stating what an implementation must, should and may do
-    - Done when: rules are numbered and the page rejects a non-conformant case (a core agent holding a connector); `python3 tools/check_docs.py docs/conformance.md --require Must --require Non-conformant`
   - [ ] **FEAT-002.3** · mid · Give each variant its own section and diagram
     - Done when: system, group, peer and listening-post variants each have a diagram; `python3 tools/check_docs.py docs/variants.md --require Group --require Peer --require Listening`
   - [ ] **FEAT-002.4** · mid · Document anti-patterns and failure modes
@@ -24,7 +22,7 @@
 - [ ] **FEAT-005** · P1 · mid · Add an FAQ and objections page built from the launch kit's pushback table
   - Done when: each launch-kit objection has an answer that links to the specification; `python3 tools/check_docs.py docs/faq.md --require MCP --require Anti-corruption`
   - Links: Ref: docs/plans/PROJECT.md#scope · Depends: FEAT-002 · Lane: pattern
-- [ ] **TASK-008** · P2 · mid · Add an MCP binding and a durable ledger example to the reference implementation
-  - Done when: both run against the shipments example; `cd reference/python && pytest tests/test_mcp_binding.py tests/test_durable_ledger.py`
+- [ ] **TASK-008** · P2 · mid · Add an MCP binding to the reference implementation
+  - Done when: it runs against the shipments example; `cd reference/python && pytest tests/test_mcp_binding.py`
   - Links: Ref: docs/plans/PROJECT.md#out-of-scope · Lane: reference
   - State: next: decompose

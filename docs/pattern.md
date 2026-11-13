@@ -278,7 +278,7 @@ How an ambassador is run (whether it keeps state between tasks, whether it is al
 
 ## Example
 
-See the [worked example](example.md).
+See the [worked example](example.md). The rules above are restated as numbered Must, Should and May rules, with cases that fail them, in [conformance](conformance.md).
 
 ## Known uses
 

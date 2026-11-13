@@ -68,6 +68,7 @@ An ambassador never starts an exchange with the core. The core opens a subscript
 |---|---|
 | Understand the full definition | [The pattern](pattern.md) |
 | Decide whether and how to apply it | [Decision guide](decision-guide.md) |
+| Check a design or an implementation against the rules | [Conformance](conformance.md) |
 | See it applied to one boundary, without code | [Worked example](example.md) |
 | Bind it to a protocol | [Protocol mapping](protocol-mapping.md), with A2A as the reference |
 | Know where the ideas came from | [Influences](influences.md) |
