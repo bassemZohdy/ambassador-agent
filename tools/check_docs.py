@@ -41,15 +41,15 @@ def markdown_files(path: Path) -> list[Path]:
     return found
 
 
-def prose_lines(text: str) -> list[tuple[int, str]]:
-    """Lines outside fenced code blocks, with inline code removed."""
+def prose_lines(text: str, keep_inline_code: bool = False) -> list[tuple[int, str]]:
+    """Lines outside fenced code blocks, with inline code removed unless kept."""
     lines, fenced = [], False
     for number, line in enumerate(text.splitlines(), start=1):
         if line.lstrip().startswith(("```", "~~~")):
             fenced = not fenced
             continue
         if not fenced:
-            lines.append((number, INLINE_CODE.sub("", line)))
+            lines.append((number, line if keep_inline_code else INLINE_CODE.sub("", line)))
     return lines
 
 
@@ -63,7 +63,8 @@ def slug(heading: str) -> str:
 def anchors(path: Path) -> set[str]:
     seen: dict[str, int] = {}
     result = set()
-    for _, line in prose_lines(path.read_text(encoding="utf-8")):
+    # A heading's code text is part of its anchor, as it is on GitHub.
+    for _, line in prose_lines(path.read_text(encoding="utf-8"), keep_inline_code=True):
         match = HEADING.match(line)
         if not match:
             continue

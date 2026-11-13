@@ -40,6 +40,11 @@ class CheckDocsTest(unittest.TestCase):
         self.assertEqual(len(problems), 2)
         self.assertTrue(all("anchor" in p for p in problems))
 
+    def test_heading_with_inline_code_keeps_its_text_in_the_anchor(self):
+        self.write("a.md", "# A\n\n[x](b.md#the-mapping-for-unknown)\n")
+        self.write("b.md", "# B\n\n## The mapping for `unknown`\n")
+        self.assertEqual(self.run_check(self.root), [])
+
     def test_missing_image_is_reported(self):
         self.write("a.md", "# A\n\n![a drawing](diagrams/missing.svg)\n")
         problems = self.run_check(self.root)
