@@ -79,7 +79,7 @@ How an ambassador is run (stateless or durable, always on or on demand) is a dep
 
 ## Status and contributing
 
-Version 0.1: a proposed pattern, open for critique. The most useful contributions are counter-examples (a boundary the pattern does not fit), known uses, and new variants. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Version 0.2: a proposed pattern, open for critique. The most useful contributions are counter-examples (a boundary the pattern does not fit), known uses, and new variants. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Tests: `python3 tools/test_check_docs.py && python3 tools/check_docs.py . && cd reference/python && pytest -q`
 

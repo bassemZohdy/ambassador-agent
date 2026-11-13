@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use or refer to this pattern, please cite it as below."
+title: "The Ambassador Agent pattern: one accountable agent per external-system boundary"
+type: software
+authors:
+  - family-names: Zohdy
+    given-names: Bassem
+version: 0.2.0
+date-released: 2026-11-14
+repository-code: "https://github.com/bassemZohdy/ambassador-agent"
+license:
+  - CC-BY-4.0
+  - MIT
+abstract: >-
+  A proposed design pattern for agentic integration platforms. Every
+  external-system boundary gets exactly one autonomous agent that answers
+  for everything that crosses it. The repository holds the specification,
+  numbered conformance rules, worked examples and a small reference
+  implementation. It is a proposal open for critique and has no documented
+  use in production yet.
+keywords:
+  - design pattern
+  - ai agents
+  - software architecture
+  - system integration
+  - idempotency
