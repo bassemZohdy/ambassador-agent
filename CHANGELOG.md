@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
 ### Added
 
 - **TASK-023** (feat): Run two replicas of one ambassador on one shared journal. `SqliteJournal` now keeps leases with a fencing token that only grows, and checks the token in the same transaction as the write: an intent cannot be opened under a lapsed lease, and cannot be settled once another copy has taken the resource over. `Ambassador` takes `leases=` and `leasing=`: it leases the resource around the check and the write, renews while the task runs, passes the token to the handler as `ctx.fencing_token`, and claims an open intent by taking the lease on its resource. Off by default; existing behaviour is unchanged. Eleven tests, including a real process killed mid-task, show one task per resource across copies, a repeat answered once, the survivor settling the dead copy's intent with no second action and a stalled copy refused by both the journal and the partner. They also show why a lookup must carry the token. Ref: docs/pattern.md#more-than-one-replica. Validated: `cd reference/python && pytest tests/test_replicas.py`. Docs: updated docs/pattern.md, docs/conformance.md, docs/faq.md, docs/index.md, reference/README.md.

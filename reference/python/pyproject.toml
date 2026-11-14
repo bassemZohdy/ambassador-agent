@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ambassador-agent"
-version = "0.2.2"
+version = "0.3.0"
 description = "Reference implementation of the Ambassador Agent pattern: one accountable agent per external-system boundary."
 requires-python = ">=3.10"
 license = { text = "MIT" }
