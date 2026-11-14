@@ -78,3 +78,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-14 · go on · release 0.2.2 prepared: CITATION.cff names one license, because Zenodo could not load two
 - 2026-11-14 · go on · Zenodo archived release 0.2.2; the DOI is recorded in the README and CITATION.cff
 - 2026-11-14 · go on · A2A weak row tested from the client's side (TASK-022); multi-replica demonstration added to the backlog (TASK-023)
+- 2026-11-14 · answers to the open questions · identity: a documented test vector and no new code (TASK-024); replicas: lease with a fencing token; DOI: Hashnode article only; no freeze, everything stays open

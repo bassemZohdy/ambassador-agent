@@ -136,3 +136,47 @@ async def test_without_a_verifier_the_principal_is_taken_as_given():
 
 def test_the_contract_says_whether_the_principal_is_verified(delegations):
     assert build(delegations)[2].describe()["verifies_principal"] is True
+
+
+# The worked example in docs/identity-and-trust.md. If these tests change, change the page.
+
+
+def decoded(delegation):
+    import base64
+    import json
+
+    return json.loads(base64.urlsafe_b64decode(delegation.partition(".")[0]))
+
+
+def test_the_delegation_in_the_worked_example_has_these_claims(delegations):
+    assert decoded(grant(delegations)) == {
+        "aud": "courier-ambassador",
+        "caller": "assistant-workload",
+        "exp": 1_000_300.0,
+        "on_behalf_of": "customer-1",
+        "scopes": ["shipments:write"],
+        "subject": "assistant",
+    }
+
+
+async def test_a_verifier_can_add_revocation_through_the_same_port(delegations):
+    """The stand-in has no revocation. A deployment adds it in its verifier, and nothing else changes."""
+
+    class RevocationAware:
+        def __init__(self, inner):
+            self.inner, self.revoked = inner, set()
+
+        async def verify(self, request):
+            if request.delegation in self.revoked:
+                return "delegation revoked"
+            return await self.inner.verify(request)
+
+    verifier = RevocationAware(delegations)
+    office, journal, amb = build(verifier)
+    delegation = grant(delegations)
+    assert (await amb.perform(task(delegation, key="k1"))).outcome is Outcome.SUCCEEDED
+    verifier.revoked.add(delegation)
+    result = await amb.perform(task(delegation, number="O-2", key="k2"))
+    assert result.outcome is Outcome.REJECTED and result.error.code == "principal_unverified"
+    assert office.created == 1  # the revoked delegation did not cross the boundary
+    assert any(e.get("detail") == "delegation revoked" for e in journal.entries if e.get("kind") == "refused")

@@ -89,9 +89,50 @@ For every task: the authenticated caller, the principal, the scopes in force, th
 
 It carries a `Principal` with every request, asks a credential broker for credentials for that principal, and checks the principal's scopes, including the approval scope.
 
-It also has a `PrincipalVerifier` port, and `HmacDelegations` is a stand-in that uses signed delegations from the standard library. With a verifier configured, the ambassador checks it first, before anything else. The principal is rebuilt from the delegation, so its scopes come from the proof and anything the task claims about scopes is ignored. A task with no delegation, a bad signature, an expiry in the past, another audience, another caller, or a different principal than the one the delegation names ends as `rejected` with the code `principal_unverified`. The caller is told only that the principal was not accepted. The reason goes in the journal beside the caller and the claimed principal. Tests cover each case.
+It also has a `PrincipalVerifier` port, and `HmacDelegations` is a stand-in that uses signed delegations from the standard library. With a verifier configured, the ambassador checks it first, before anything else. The principal is rebuilt from the delegation, so its scopes come from the proof and anything the task claims about scopes is ignored. A task with no delegation, a bad signature, an expiry in the past, another audience, another caller, or a different principal than the one the delegation names ends as `rejected` with the code `principal_unverified`. The caller is told only that the principal was not accepted. The reason goes in the journal beside the caller and the claimed principal. Tests cover each case. A [worked delegation](#a-worked-delegation) below shows the claims.
 
 Two limits remain. The verifier is off by default, and without it the reference takes the principal as given, which the contract shows as `verifies_principal: false`. And `HmacDelegations` is a teaching stand-in: a real deployment uses its identity provider's tokens and the same checks, and a test double still stands in for the credential broker.
+
+## A worked delegation
+
+A delegation is the proof that a caller may act for a principal. The reference's stand-in encodes one as signed claims. A real deployment uses its identity provider's token and the same checks. This is the shape, and the claims below are exactly what [`test_identity.py`](../reference/python/tests/test_identity.py) checks.
+
+```json
+{
+  "aud": "courier-ambassador",
+  "caller": "assistant-workload",
+  "exp": 1000300.0,
+  "on_behalf_of": "customer-1",
+  "scopes": ["shipments:write"],
+  "subject": "assistant"
+}
+```
+
+The workload `assistant-workload` may act as `assistant`, for `customer-1`, with one scope, at the ambassador named `courier-ambassador`, for five minutes. Each claim answers one attack:
+
+| Claim | What it stops | What the ambassador does if it fails |
+|---|---|---|
+| Signature | An edited or invented delegation | Rejects with `principal_unverified` |
+| `aud` | A delegation issued for another ambassador, used here | Rejects |
+| `exp` | A delegation that was stolen or leaked long ago | Rejects |
+| `caller` | A stolen delegation presented from another workload | Rejects |
+| `subject`, `on_behalf_of` | A task that names a different principal than the one proven | Rejects |
+| `scopes` | A task that claims more than it was given | Ignores the claim. The scopes come from the proof |
+
+In every case the caller is told only that the principal was not accepted. The reason goes in the journal, beside the caller and the claimed principal, so an owner can see it and a forger cannot learn it.
+
+### Revocation
+
+The claims above end a delegation by time only. To end one sooner, the verifier needs to ask someone. The stand-in does not do that, and the pattern does not say how. The port makes it a verifier's decision. A verifier that consults a revocation list, or asks the identity provider, answers `delegation revoked` and the task ends as `rejected` before it crosses the boundary. A test shows this by wrapping the stand-in, with no change to the ambassador.
+
+Two guides for choosing:
+
+- A short lifetime is the first defence, and the cheapest. Make it about as long as one task, or one conversation, can take.
+- Check revocation for capabilities with a side effect that cannot be compensated. For read-only capabilities, a short lifetime is usually enough.
+
+### What this does not show
+
+It does not show a real token format, key rotation, or how much clock difference to allow between the issuer and the ambassador. Those are deployment decisions and belong to your identity provider. It also does not show transaction-specific authorisation, where each irreversible action needs its own approval. The contract's `requires_approval` and the `approval:<capability>` scope are the pattern's hook for that.
 
 ## Checklist
 
