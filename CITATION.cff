@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Zohdy
     given-names: Bassem
-version: 0.2.0
+version: 0.2.1
 date-released: 2026-11-14
 repository-code: "https://github.com/bassemZohdy/ambassador-agent"
 license:
