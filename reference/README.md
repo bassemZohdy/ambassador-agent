@@ -12,7 +12,7 @@ cd reference/python
 pip install -e ".[dev]"
 python examples/shipments.py     # the worked example from docs/example.md
 pytest                         # core, fault-injection and durable-journal tests; adapter tests run if the SDKs are installed
-pip install -e ".[adk,langgraph,a2a,mcp]" && pytest
+pip install -e ".[adk,langgraph,a2a,mcp,temporal]" && pytest
 ```
 
 ## Status
@@ -23,6 +23,7 @@ pip install -e ".[adk,langgraph,a2a,mcp]" && pytest
 | Fault injection (`tests/test_faults.py`) | Reference | A crash at each step of a task, a request that lands after the caller gave up, tasks racing for one resource, and seeded random runs that check the invariants once every fault has played out |
 | Principal verification (`PrincipalVerifier`, `HmacDelegations`) | Reference | A forged, tampered, expired, misdirected or stolen delegation, and a task naming a different principal, are rejected and journalled. A stand-in, off by default |
 | Durable journal (`durable.py`, `SqliteJournal`) | Reference | Tested by opening the same file from a second connection as a restart: recovery, remembered results, unknown outcomes and their resolution |
+| Temporal adapter (`adapters/temporal.py`, `tests/test_temporal.py`) | Experimental | The workflow id is the resource key, one activity that never retries on its own, recovery under the same id. Tests run against a real Temporal dev server in CI and are skipped where the SDK cannot download one. See [running replicas on Temporal](../docs/on-temporal.md) |
 | Replicas (`leases=`, `Leasing`, `tests/test_replicas.py`) | Reference | Two copies on one shared SQLite journal: one task per resource across copies, a repeat on either copy answered once, a lease kept alive by renewing, a real process killed mid-task and its intent settled by the other copy after the lease lapses with no second action, a stalled copy refused by the journal and by the partner. One host, one file, off by default |
 | Worked example (`examples/shipments.py`) | Reference | Runs end to end in CI |
 | LangGraph adapter | Reference | Runs as a node in a compiled graph |

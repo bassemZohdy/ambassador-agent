@@ -32,4 +32,12 @@ The core stays a LangGraph graph, or any agent. It reaches the ambassador throug
 
 ## Status
 
-This is a design mapping. The reference implementation's Temporal adapter, when it exists, is Experimental until its tests run against a real Temporal server in CI.
+Experimental. The reference implementation has an adapter ([`adapters/temporal.py`](../reference/python/src/ambassador_agent/adapters/temporal.py)) with five tests that run against a real Temporal dev server in CI:
+
+- two workers never work on one resource at once, and the second task is refused as `resource_busy`;
+- different resources run side by side;
+- a finished resource is free again, and a repeat is answered from the journal;
+- a timeout is `unknown`, and a repeat never books twice;
+- recovery settles the intent of a worker that was killed, and cannot overlap a task for the same resource.
+
+They do not run in every environment, because the SDK has to download the dev server. The timeout test checks only that nothing is booked twice: it does not pin whether the slow call finishes after Temporal gave up on it. It uses one Temporal server and one journal file, so it shows the mapping and not a deployment.

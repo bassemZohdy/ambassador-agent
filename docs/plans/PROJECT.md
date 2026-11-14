@@ -83,3 +83,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-14 · answers to the open questions · release 0.3.0 for the replica demonstration; next work: delivery class per courier; no promotion; the contributor entry stays
 - 2026-11-14 · go on · TASK-025 done: the contract of a group capability states what holds on every route; the ambassador applies the class of the route it used (rule C42)
 - 2026-11-14 · apply · replicas: the pattern says to use the platform's coordination, cites Kleppmann and Chubby, and keeps two requirements; the lease demonstration moves to the reference README as a teaching sketch (TASK-026). Next: a Temporal-based reference solution, under discussion
+- 2026-11-14 · answers on Temporal · mapping page and an experimental adapter built (TASK-027); the Ambassador's own journal stays the source of truth; tests pass against a real dev server in CI
