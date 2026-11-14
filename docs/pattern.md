@@ -215,7 +215,7 @@ Two requirements follow from this pattern's own rules, whichever mechanism is us
 - **An open intent holds its resource for every copy.** A retry under a new key is refused until someone settles the intent, wherever the retry lands. A repeat under the same key is answered from the record as `unknown` and never sent again.
 - **A lookup that settles an intent carries the new holder's token too.** A stalled copy's request may still be on its way, and the external system can refuse an older token only after it has seen a newer one. If a lookup does not raise that fence, "no record" is a guess and the stalled copy's request can still land. This is what makes [rule C17](conformance.md) hold across copies.
 
-The [reference implementation](../reference/README.md#what-the-replica-demonstration-shows) shows one mechanism on one SQLite file, as a teaching sketch and not a recommendation.
+[Running replicas on Temporal](on-temporal.md) maps these requirements onto one platform. The [reference implementation](../reference/README.md#what-the-replica-demonstration-shows) shows one mechanism on one SQLite file, as a teaching sketch and not a recommendation.
 
 ### Discovery
 

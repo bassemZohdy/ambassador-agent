@@ -37,8 +37,14 @@ jobs:
       # The platform SDKs need a newer Python than the dependency-free core does.
       - name: Install platform SDKs
         if: matrix.python == '3.13'
-        run: pip install -e ".[adk,langgraph,a2a,mcp]"
+        run: pip install -e ".[adk,langgraph,a2a,mcp,temporal]"
       - name: Adapter tests
         if: matrix.python == '3.13'
         run: pytest -q
+      # The SDK downloads a Temporal dev server. Here a missing server is a failure, not a skip.
+      - name: Temporal adapter (real dev server)
+        if: matrix.python == '3.13'
+        env:
+          AMBASSADOR_REQUIRE_TEMPORAL: "1"
+        run: pytest -q -rs tests/test_temporal.py
       - run: python examples/shipments.py

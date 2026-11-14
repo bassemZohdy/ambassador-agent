@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 import os
 import sqlite3
+import subprocess
+import sys
 from typing import Any, Mapping
 
 from ambassador_agent import (
@@ -122,6 +124,7 @@ def replica(
     wait: float = 5.0,
     on_unknown: Unknown = Unknown.VERIFY,
     on_busy: str = "wait",
+    leased: bool = True,
 ) -> Ambassador:
     """One copy of the ambassador. Every copy opens the same journal file, with a connection of its own."""
     journal = SqliteJournal(journal_path)
@@ -129,7 +132,7 @@ def replica(
         AmbassadorSpec("order-ambassador", "partner-orders", "integrations-team@example.org"),
         office,
         journal=journal,
-        leases=journal,  # the same store holds the leases, so the token is checked in the same step as the write
+        leases=journal if leased else None,  # the same store holds the leases, so the token is checked in the same step as the write
         leasing=Leasing(holder=name, ttl_seconds=ttl, wait_seconds=wait, poll_seconds=0.01),
         admission=Admission(on_busy=on_busy, retry_after_seconds=0.1),
         resilience=Resilience(backoff_seconds=0.0),
@@ -152,7 +155,21 @@ def task(key: str, order: str = "O-1", **payload: Any) -> ActionRequest:
     return ActionRequest("book_order", {"order": order, **payload}, CORE, idempotency_key=key)
 
 
-def die_midway(journal_path: str, office_path: str, ttl: float) -> None:
+def die_midway(journal_path: str, office_path: str, ttl: float, leased: bool = True) -> None:
     """Run in a child process: take a task, write the booking at the partner, and die before the outcome is recorded."""
-    ambassador = replica("doomed", journal_path, Office(office_path, die_after_write=True), ttl=ttl)
+    ambassador = replica("doomed", journal_path, Office(office_path, die_after_write=True), ttl=ttl, leased=leased)
     asyncio.run(ambassador.perform(task("k1")))
+
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def kill_a_replica_mid_task(journal_path: str, office_path: str, ttl: float, leased: bool = True) -> None:
+    """Start a replica in another process and let it die after the partner wrote the booking and before the journal heard."""
+    child = subprocess.run(
+        [sys.executable, "-c", f"from replicas_kit import die_midway; die_midway({journal_path!r}, {office_path!r}, {ttl}, {leased})"],
+        env={**os.environ, "PYTHONPATH": os.pathsep.join([HERE, os.path.join(HERE, "..", "src")])},
+        capture_output=True,
+        timeout=30,
+    )
+    assert child.returncode == 17, child.stderr.decode()  # it died where the test said it would

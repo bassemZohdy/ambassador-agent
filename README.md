@@ -71,6 +71,7 @@ How an ambassador is run (stateless or durable, always on or on demand) is a dep
 | [Decision guide](docs/decision-guide.md) | When to use it, where a boundary ends, designing a capability, admission limits, deployment choices |
 | [Worked example](docs/example.md) | The pattern applied to one boundary through six scenarios, with no code |
 | [Protocol mapping](docs/protocol-mapping.md) | How the interaction model maps onto A2A as the reference protocol, the gaps, and a proposed Extension |
+| [Running replicas on Temporal](docs/on-temporal.md) | How the replica requirements map onto Temporal, and what it does not cover |
 | [Influences](docs/influences.md) | What was taken from the outbox, saga, actor model, durable execution and others, and what was left out |
 | [Comparison and prior art](docs/comparison.md) | How it differs from the cloud Ambassador pattern, anti-corruption layer, MCP servers, gateways |
 | [References](docs/references.md) | Every pattern, protocol, platform and paper considered, grouped by kind |

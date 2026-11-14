@@ -217,7 +217,7 @@ class Ambassador:
             if self._leases is not None and lock is not None:
                 # Between copies the in-process lock means nothing, so the resource is leased too. Everything below,
                 # the check of the journal and the write that follows it, happens under the lease.
-                lease = await self._hold((capability.resource(request.payload) if capability.resource else "") or "*", wait=self._admission.on_busy != "reject")
+                lease = await self._hold(self.resource_of(request), wait=self._admission.on_busy != "reject")
                 if lease is None:
                     busy = BoundaryError("resource_busy", "another copy of this ambassador is working on the resource", True, self._admission.retry_after_seconds)
                     return await self._refuse(request, busy.code, busy.message, busy)
@@ -259,6 +259,12 @@ class Ambassador:
                 await self._drop(lease)
             if lock is not None:
                 lock.release()
+
+    def resource_of(self, request: ActionRequest) -> str:
+        """The key a task runs under: its capability's resource, or the whole boundary. A binding in front of the
+        ambassador uses it to route or to name the work, for example the workflow id on a workflow platform."""
+        capability = self._capabilities.get(request.capability)
+        return ((capability.resource(request.payload) if capability and capability.resource else "") or "*")
 
     async def _replay(self, request: ActionRequest, capability: Capability, pending: bool = False) -> ActionResult | None:
         """Answer a repeated task from the record, so the external system is not called again.
@@ -479,14 +485,19 @@ class Ambassador:
 
     # ---- recovery: reconcile actions whose outcome was never recorded ---
 
-    async def reconcile(self) -> list[ActionResult]:
+    async def reconcile(self, resource: str | None = None) -> list[ActionResult]:
         """Settle every intent that has no outcome. Call this on start-up, before taking new tasks.
+
+        With `resource`, only the intents for that resource key are settled, which lets a platform run recovery
+        for one resource under the same exclusion as its tasks.
 
         Each result is one of: succeeded (found, or resent safely), failed (confirmed not done, with the
         fallback if the capability has one), or unknown (it cannot be told from here; see `unresolved`).
         """
         results: list[ActionResult] = []
         for intent in await self.journal.unfinished():
+            if resource is not None and (intent.get("resource") or "*") != resource:
+                continue
             capability = self._capabilities.get(intent["capability"])
             held: _Held | None = None
             if self._leases is not None and (capability is None or capability.side_effect):

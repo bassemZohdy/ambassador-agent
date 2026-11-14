@@ -5,18 +5,12 @@ can be killed in another process. The older tests in test_faults.py pin what goe
 lease buys.
 """
 import asyncio
-import os
-import subprocess
-import sys
 import time
 
 import pytest
 
 from ambassador_agent import LeaseLost, Outcome, PermanentError, SqliteJournal, Unknown
-from replicas_kit import Office, replica, task
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-
+from replicas_kit import Office, kill_a_replica_mid_task, replica, task
 
 @pytest.fixture
 def journal_path(tmp_path):
@@ -78,16 +72,6 @@ async def test_a_task_longer_than_the_lease_keeps_it_by_renewing(journal_path, o
 
 
 # ---- a copy that dies --------------------------------------------------------------------------------------
-
-
-def kill_a_replica_mid_task(journal_path, office_path, ttl):
-    child = subprocess.run(
-        [sys.executable, "-c", f"from replicas_kit import die_midway; die_midway({journal_path!r}, {office_path!r}, {ttl})"],
-        env={**os.environ, "PYTHONPATH": os.pathsep.join([HERE, os.path.join(HERE, "..", "src")])},
-        capture_output=True,
-        timeout=30,
-    )
-    assert child.returncode == 17, child.stderr.decode()  # it died where the test said it would
 
 
 async def test_the_other_replica_settles_a_dead_replicas_intent_once_the_lease_lapses_and_never_acts_twice(journal_path, office_path):
