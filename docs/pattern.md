@@ -95,6 +95,8 @@ The journal does not make an action happen exactly once. Across a boundary the a
 
 `resend` is only effectively-once if the other side deduplicates. If it does not, `resend` quietly means at-least-once. A capability that declares it must be able to defend that choice.
 
+**One capability, several systems.** A group ambassador may serve one capability through more than one external system, and the delivery class can differ between them. The classes are not a single ladder: `stop` can leave an outcome `unknown`, and `resend` can leave a duplicate. So the contract states what holds on **every** route the ambassador may use, fact by fact: the outcome may end `unknown` if any route is `stop`, a duplicate is possible if any route is `resend`, and the capability is compensable only if every route can compensate. The ambassador applies the class of the route it actually used and journals which route that was. The core relies on the contract and never learns which system is behind it. A published class stronger than any route can back is a false promise. Naming the routes in the contract would let the core see the stronger classes, and would also let it depend on the systems behind the boundary.
+
 **The operation id.** Every task has one: the idempotency key it carries, or one the ambassador makes. It is journalled with the intent and sent to the external system as its idempotency key or client reference. It is the same on every retry, resend and recovery. That is what lets the other side deduplicate, or be asked. An ambassador that sends a new identifier each time cannot reconcile anything.
 
 **Reconciliation** follows what the capability declared:

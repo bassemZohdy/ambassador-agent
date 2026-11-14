@@ -80,6 +80,7 @@ The designs that break them are described in [anti-patterns](anti-patterns.md). 
 | C32 | Must | The ambassador publishes its capabilities in the core's language. Each one states whether it has a side effect, its delivery class, and whether it can be compensated |
 | C33 | May | A capability declares a data classification, an audit retention and whether it requires approval |
 | C34 | May | A protocol binding adds the discovery document and carries the task. It never changes a rule above |
+| C42 | Must | When a capability is served through more than one external system, the contract states what holds on every route (it may end `unknown` if any route cannot be asked, a duplicate is possible if any route resends, compensable only if every route compensates). The ambassador applies the delivery class of the route it used, and the journal records the route |
 
 ### More than one replica
 
@@ -105,6 +106,7 @@ A design that breaks a Must rule is **Non-conformant**, however it is described.
 | The ambassador calls the core to ask a question, or calls another ambassador to finish the job | C3 | One direction of initiation keeps message loops impossible |
 | Free text from the external system is passed to a core agent unsanitised | C29 | Text from outside can carry instructions |
 | An unbounded queue in front of the ambassador | C26 | Overload turns into memory exhaustion and stale work |
+| A group ambassador publishes the class of its best route, and a task that fell to another route ends `unknown` | C42 | The core was promised an outcome that the route in use cannot give |
 | Two replicas share a journal and each checks it, then writes, with no lease | C35, C37 | Both can read "nothing open" before either writes |
 | A replica that stalled past its lease writes anyway, and nothing checks its token | C35, C37 | Two copies are then working on one resource, and the old one's record or request lands after the new one's |
 | The ambassador trusts an `on_behalf_of` field in the task and acts for whoever it names | C38 | Any caller can write that field. It is a forged principal |

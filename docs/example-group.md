@@ -42,13 +42,15 @@ The first courier left is attempt 1. The next is the one failover would use.
 
 `book_delivery` has one resource, the order number, so two bookings for one order cannot race. It is compensable, by `cancel_delivery`.
 
-The delivery class is a property of each courier behind the capability:
+The delivery class is a property of each courier behind the capability. The ambassador keeps this table and uses the row of the courier it used:
 
 | | Northline | Quickpost |
 |---|---|---|
 | Delivery class | Effectively once, by `verify` | `stop` |
 | Absence is final | Yes | Not applicable |
 | What settles a lost reply | Ask Northline about the operation id | Nothing can. The owner is asked |
+
+What the contract publishes is not this table. It states what holds on every route: the booking may end `unknown`, because Quickpost cannot be asked, a duplicate is not possible, and the capability is compensable only if both couriers can cancel. The assistant sees that line and never learns that two couriers exist. When Northline is used, the booking is settled by a lookup and the contract is met with room to spare. When Quickpost is used, `unknown` is the contract keeping its word.
 
 The operation id belongs to the task, not to the courier. It is the same for attempt 1 and attempt 2, so the journal reads as one task with two attempts.
 
@@ -93,7 +95,7 @@ The owner finds the booking in Quickpost's own portal and records `succeeded`, o
 
 ## What this example does not settle
 
-- **Declarations per courier.** The pattern states a delivery class on a capability. In a group, the class differs by courier behind it. The example treats each courier as having its own declaration and has the ambassador apply the one of the courier it used. What the published contract should say to the core, as a single line per capability, is open. Publishing the weakest class (here `stop`, so an outcome may end `unknown`) is the safe answer, and a stricter one needs the contract to expose the courier.
+- **Whether the core could use more.** The contract states the worst case across routes, so a caller that would rather know a route's class cannot. A stricter, per-route contract needs the core to see the routes, which gives up the point of grouping. The pattern does not offer it.
 - **Cost of a failover.** The rule lets a failover reach a dearer courier. Whether a failover may cross a price limit is a policy for the owner. The example shows the journal making it visible, not the limit.
 - **The reference implementation** has one external system. It does not implement routing or failover, so there is no runnable version of this example yet.
 

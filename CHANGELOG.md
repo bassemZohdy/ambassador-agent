@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **TASK-025** (docs): Decide what a group ambassador publishes when the delivery class differs between systems. The contract states what holds on every route, fact by fact (may end `unknown`, a duplicate is possible, compensable only if every route compensates), because the classes are not a single ladder. The ambassador applies the class of the route it used and journals the route. New rule C42 and a non-conformant case. Ref: docs/example-group.md#what-this-example-does-not-settle. Validated: `python3 tools/check_docs.py .`. Docs: updated docs/pattern.md, docs/conformance.md, docs/example-group.md.
+
 ## [0.3.0] - 2026-11-14
 
 ### Added

@@ -81,3 +81,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-14 · answers to the open questions · identity: a documented test vector and no new code (TASK-024); replicas: lease with a fencing token; DOI: Hashnode article only; no freeze, everything stays open
 - 2026-11-14 · go on · two-replica demonstration built with a lease and fencing token on a shared SQLite journal (TASK-023); Hashnode article republished with the DOI
 - 2026-11-14 · answers to the open questions · release 0.3.0 for the replica demonstration; next work: delivery class per courier; no promotion; the contributor entry stays
+- 2026-11-14 · go on · TASK-025 done: the contract of a group capability states what holds on every route; the ambassador applies the class of the route it used (rule C42)
