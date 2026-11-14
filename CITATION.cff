@@ -6,6 +6,7 @@ authors:
   - family-names: Zohdy
     given-names: Bassem
 version: 0.2.2
+doi: 10.5281/zenodo.24210615
 date-released: 2026-11-14
 repository-code: "https://github.com/bassemZohdy/ambassador-agent"
 license: CC-BY-4.0

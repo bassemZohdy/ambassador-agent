@@ -76,3 +76,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-14 · ok go on · release 0.2.0 prepared: CITATION.cff, README and reference package at version 0.2
 - 2026-11-14 · go on · release 0.2.1 prepared so Zenodo archives the repository and mints a DOI
 - 2026-11-14 · go on · release 0.2.2 prepared: CITATION.cff names one license, because Zenodo could not load two
+- 2026-11-14 · go on · Zenodo archived release 0.2.2; the DOI is recorded in the README and CITATION.cff

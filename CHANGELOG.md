@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **TASK-021** (docs): Record the Zenodo DOI. The README shows the DOI badge and says how to cite, and `CITATION.cff` carries the concept DOI, which always resolves to the latest version. Ref: docs/plans/PROJECT.md#scope. Validated: `python3 tools/check_docs.py . && cffconvert --validate`. Docs: updated README.md, CITATION.cff.
+
 ## [0.2.2] - 2026-11-14
 
 ### Fixed

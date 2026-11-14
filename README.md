@@ -1,5 +1,7 @@
 # The Ambassador Agent pattern
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24210615.svg)](https://doi.org/10.5281/zenodo.24210615)
+
 **One accountable, autonomous agent per external-system boundary.**
 
 A design pattern for agentic integration platforms. It answers a question tool protocols leave open: when an agent acts on a system you do not own, *who is responsible for that action?*
@@ -80,6 +82,8 @@ How an ambassador is run (stateless or durable, always on or on demand) is a dep
 ## Status and contributing
 
 Version 0.2: a proposed pattern, open for critique. The most useful contributions are counter-examples (a boundary the pattern does not fit), known uses, and new variants. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+To cite it, use the DOI above (it always resolves to the latest version) or the "Cite this repository" button, which reads [CITATION.cff](CITATION.cff).
 
 Tests: `python3 tools/test_check_docs.py && python3 tools/check_docs.py . && cd reference/python && pytest -q`
 
