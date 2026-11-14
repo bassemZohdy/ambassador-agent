@@ -10,6 +10,8 @@ import pytest
 
 pytest.importorskip("temporalio")
 
+from temporalio.client import Client  # noqa: E402
+from temporalio.runtime import Runtime, TelemetryConfig  # noqa: E402
 from temporalio.testing import WorkflowEnvironment  # noqa: E402
 
 from ambassador_agent import ActionRequest, Outcome, Principal  # noqa: E402
@@ -50,15 +52,20 @@ def paths(tmp_path):
     return str(tmp_path / "journal.db"), str(tmp_path / "office.db")
 
 
-def workers(env, journal_path, office, count=2):
-    """`count` workers on one task queue, each with its own ambassador and a connection to the same journal."""
-    return [TemporalAmbassador(replica(f"w{i}", journal_path, office, leased=False)).worker(env.client) for i in range(count)]
+async def workers(env, journal_path, office, count=2):
+    """`count` workers on one task queue, as separate processes would be: each has its own runtime and client, and its own
+    ambassador with a connection to the same journal. (One runtime refuses two workers on one task queue.)"""
+    found = []
+    for i in range(count):
+        client = await Client.connect(env.client.service_client.config.target_host, namespace=env.client.namespace, runtime=Runtime(telemetry=TelemetryConfig()))
+        found.append(TemporalAmbassador(replica(f"w{i}", journal_path, office, leased=False)).worker(client))
+    return found
 
 
 async def test_two_workers_never_work_on_one_resource_at_once_and_the_second_task_is_refused(env, paths):
     journal_path, office_path = paths
     office = Office(office_path)
-    ws = workers(env, journal_path, office)
+    ws = await workers(env, journal_path, office)
     async with ws[0], ws[1]:
         first, second = await asyncio.gather(
             submit(env.client, NAME, "O-1", task("x", stall=0.5)),
@@ -74,7 +81,7 @@ async def test_two_workers_never_work_on_one_resource_at_once_and_the_second_tas
 async def test_different_resources_run_side_by_side(env, paths):
     journal_path, office_path = paths
     office = Office(office_path)
-    ws = workers(env, journal_path, office)
+    ws = await workers(env, journal_path, office)
     async with ws[0], ws[1]:
         results = await asyncio.gather(
             submit(env.client, NAME, "O-1", task("x", "O-1", stall=0.4)),
@@ -87,7 +94,7 @@ async def test_different_resources_run_side_by_side(env, paths):
 async def test_a_finished_resource_is_free_and_a_repeat_is_answered_from_the_journal(env, paths):
     journal_path, office_path = paths
     office = Office(office_path)
-    ws = workers(env, journal_path, office)
+    ws = await workers(env, journal_path, office)
     async with ws[0], ws[1]:
         done = await submit(env.client, NAME, "O-1", task("same"))
         again = await submit(env.client, NAME, "O-1", task("same"))  # the workflow id is free again
@@ -99,7 +106,7 @@ async def test_a_finished_resource_is_free_and_a_repeat_is_answered_from_the_jou
 async def test_a_timeout_is_unknown_and_a_repeat_never_books_twice(env, paths):
     journal_path, office_path = paths
     office = Office(office_path)
-    ws = workers(env, journal_path, office)
+    ws = await workers(env, journal_path, office)
     async with ws[0], ws[1]:
         late = await submit(env.client, NAME, "O-1", task("slow", stall=1.0), timeout_seconds=0.4)
         assert late.outcome is Outcome.UNKNOWN and late.fallback is None and late.operation_id == "slow"
@@ -114,7 +121,7 @@ async def test_recovery_settles_a_dead_workers_intent_and_cannot_overlap_a_task(
     kill_a_replica_mid_task(journal_path, office_path, ttl=1.0, leased=False)  # a real process dies after the partner booked
     office = Office(office_path)
     assert office.count() == 1
-    ws = workers(env, journal_path, office)
+    ws = await workers(env, journal_path, office)
     async with ws[0], ws[1]:
         running = asyncio.ensure_future(submit(env.client, NAME, "O-2", task("other", "O-2", stall=0.6)))
         await asyncio.sleep(0.2)
