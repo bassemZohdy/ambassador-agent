@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-14
+
+### Fixed
+
+- **TASK-020** (fix): `CITATION.cff` named two licenses, which Zenodo cannot load ("Citation metadata load failed"), so release 0.2.1 was not archived. It now names one, CC-BY-4.0, the license of the pattern documentation. The reference code stays MIT, as LICENSE says. The content is otherwise the same as 0.2.0. Ref: docs/plans/PROJECT.md#scope. Validated: `cffconvert --validate`. Docs: updated CITATION.cff, reference/python/pyproject.toml.
+
 ## [0.2.1] - 2026-11-14
 
 ### Changed
