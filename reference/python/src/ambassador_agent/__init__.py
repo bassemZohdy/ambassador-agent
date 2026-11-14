@@ -1,5 +1,5 @@
 """Ambassador Agent pattern: one accountable, autonomous agent per external-system boundary."""
-from .ambassador import Admission, Ambassador, BoundaryContext, Resilience
+from .ambassador import Admission, Ambassador, BoundaryContext, Leasing, Resilience
 from .defaults import HmacDelegations
 from .durable import SqliteJournal
 from .model import (
@@ -22,6 +22,8 @@ from .ports import (
     Connector,
     CredentialBroker,
     Journal,
+    LeaseLost,
+    Leases,
     PermanentError,
     Policy,
     PrincipalVerifier,
@@ -34,6 +36,6 @@ from .ports import (
 __all__ = [
     "ActionRequest", "ActionResult", "Admission", "Advice", "Ambassador", "AmbassadorSpec",
     "BoundaryContext", "BoundaryError", "Capability", "Compensation", "Connector", "CredentialBroker",
-    "ExternalEvent", "Fallback", "HmacDelegations", "Intelligence", "Journal", "Notice", "Outcome", "PermanentError",
+    "ExternalEvent", "Fallback", "HmacDelegations", "Intelligence", "Journal", "LeaseLost", "Leases", "Leasing", "Notice", "Outcome", "PermanentError",
     "Policy", "Principal", "PrincipalVerifier", "Reasoner", "Resilience", "Sanitizer", "SqliteJournal", "Subscriber", "TransientError", "Unknown",
 ]

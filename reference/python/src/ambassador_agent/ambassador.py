@@ -5,7 +5,7 @@ import asyncio
 import time
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Mapping
 
 from .defaults import InMemoryJournal, QuarantineSanitizer, ScopePolicy, StaticCredentials
@@ -27,6 +27,8 @@ from .ports import (
     Connector,
     CredentialBroker,
     Journal,
+    LeaseLost,
+    Leases,
     PermanentError,
     Policy,
     PrincipalVerifier,
@@ -57,6 +59,28 @@ class Admission:
 
 
 @dataclass(frozen=True)
+class Leasing:
+    """How replicas share the work, when more than one copy runs. See "More than one replica" in docs/pattern.md.
+
+    A replica takes a lease on the resource before it touches it, keeps it alive while the task runs, and lets it go
+    afterwards. A replica that dies stops renewing, and the lease lapses after `ttl_seconds`: that is how long a
+    crashed copy's intent waits before another copy may settle it.
+    """
+
+    holder: str = field(default_factory=lambda: f"replica-{uuid.uuid4().hex[:8]}")  # which copy this is
+    ttl_seconds: float = 10.0
+    wait_seconds: float = 30.0  # how long a task waits for another copy to let go before it is refused as busy
+    poll_seconds: float = 0.05
+
+
+@dataclass(frozen=True)
+class _Held:
+    resource: str
+    token: int
+    beat: "asyncio.Task[None]"
+
+
+@dataclass(frozen=True)
 class BoundaryContext:
     """What a capability handler is given. It is the only place the connector is reachable."""
 
@@ -67,6 +91,9 @@ class BoundaryContext:
     # Send this to the external system as its idempotency key or client reference. It stays the
     # same across retries, resends and recovery, which is what lets the other side deduplicate or be asked.
     operation_id: str = ""
+    # With replicas: the fencing token of the lease this task runs under. Send it to the external system, which can
+    # refuse a token older than one it has already seen. None when no lease is in use.
+    fencing_token: int | None = None
 
 
 class Ambassador:
@@ -83,6 +110,8 @@ class Ambassador:
         reasoner: Reasoner | None = None,
         resilience: Resilience | None = None,
         admission: Admission | None = None,
+        leases: Leases | None = None,
+        leasing: Leasing | None = None,
     ) -> None:
         if spec.intelligence is not Intelligence.SCRIPTED and reasoner is None:
             raise ValueError(f"intelligence={spec.intelligence.value} requires a reasoner")
@@ -96,6 +125,8 @@ class Ambassador:
         self._reasoner = reasoner
         self._resilience = resilience or Resilience()
         self._admission = admission or Admission()
+        self._leases = leases  # None: this is the only copy, and the in-process locks are enough
+        self._leasing = leasing or Leasing()
         self._capabilities: dict[str, Capability] = {}
         self._translators: dict[str, EventTranslator] = {}
         self._subscribers: list[Subscriber] = []
@@ -181,7 +212,15 @@ class Ambassador:
         lock, refusal = await self._admit(request, capability)
         if refusal:
             return await self._refuse(request, refusal.code, refusal.message, refusal)
+        lease: _Held | None = None
         try:
+            if self._leases is not None and lock is not None:
+                # Between copies the in-process lock means nothing, so the resource is leased too. Everything below,
+                # the check of the journal and the write that follows it, happens under the lease.
+                lease = await self._hold((capability.resource(request.payload) if capability.resource else "") or "*", wait=self._admission.on_busy != "reject")
+                if lease is None:
+                    busy = BoundaryError("resource_busy", "another copy of this ambassador is working on the resource", True, self._admission.retry_after_seconds)
+                    return await self._refuse(request, busy.code, busy.message, busy)
             # A duplicate that waited behind the original finds the recorded outcome here.
             replay = await self._replay(request, capability, pending=True)
             if replay:
@@ -200,11 +239,24 @@ class Ambassador:
                 return result
             await self._pace()
             # The journal rule: record the intent before touching the external system.
-            intent_id = await self.journal.begin(self._describe(request, operation_id))
-            result = await self._attempt(request, capability, operation_id)
-            await self._settle(intent_id, request, capability, result)
+            token = lease.token if lease else None
+            try:
+                intent_id = await self.journal.begin({**self._describe(request, operation_id), **({"fencing_token": token} if token is not None else {})})
+            except LeaseLost:
+                # The lease lapsed before the intent was written, so nothing was sent and another copy may have the resource.
+                lost = BoundaryError("lease_lost", "this copy lost its lease on the resource before it began", True, self._admission.retry_after_seconds)
+                return await self._refuse(request, lost.code, lost.message, lost)
+            result = await self._attempt(request, capability, operation_id, token)
+            try:
+                await self._settle(intent_id, request, capability, result, fencing_token=token)
+            except LeaseLost:
+                # The lease lapsed while the task ran and another copy took the resource over, so recovery is its job now.
+                # The result is real and is returned; the record of it is the other copy's to write.
+                await self.journal.record({**self._describe(request, operation_id), "kind": "settled_elsewhere", "outcome": result.outcome.value})
             return result
         finally:
+            if lease is not None:
+                await self._drop(lease)
             if lock is not None:
                 lock.release()
 
@@ -277,14 +329,41 @@ class Ambassador:
         if wait > 0:
             await asyncio.sleep(wait)
 
-    async def _context(self, request: ActionRequest, capability: Capability, operation_id: str) -> BoundaryContext:
+    async def _hold(self, resource: str, *, wait: bool) -> _Held | None:
+        """Take the lease on a resource, waiting for another copy to let go if allowed. None: it did not come free."""
+        assert self._leases is not None
+        lg = self._leasing
+        deadline = time.monotonic() + (lg.wait_seconds if wait else 0.0)
+        while True:
+            token = await self._leases.acquire(resource, lg.holder, lg.ttl_seconds)
+            if token is not None:
+                return _Held(resource, token, asyncio.ensure_future(self._beat(resource, token)))
+            if time.monotonic() >= deadline:
+                return None
+            await asyncio.sleep(lg.poll_seconds)
+
+    async def _beat(self, resource: str, token: int) -> None:
+        """Keep the lease alive while the task runs. A copy that dies stops here, and the lease lapses."""
+        assert self._leases is not None
+        lg = self._leasing
+        while True:
+            await asyncio.sleep(lg.ttl_seconds / 3)
+            if not await self._leases.renew(resource, lg.holder, token, lg.ttl_seconds):
+                return  # lost: the next write under this token is refused by the journal
+
+    async def _drop(self, held: _Held) -> None:
+        assert self._leases is not None
+        held.beat.cancel()
+        await self._leases.release(held.resource, self._leasing.holder, held.token)
+
+    async def _context(self, request: ActionRequest, capability: Capability, operation_id: str, fencing_token: int | None = None) -> BoundaryContext:
         creds = await self._credentials.credentials_for(request.principal, capability)
         reasoner = self._reasoner if self.spec.intelligence is Intelligence.AUTONOMOUS else None
-        return BoundaryContext(self._connector, creds, request, reasoner, operation_id)
+        return BoundaryContext(self._connector, creds, request, reasoner, operation_id, fencing_token)
 
-    async def _attempt(self, request: ActionRequest, capability: Capability, operation_id: str) -> ActionResult:
+    async def _attempt(self, request: ActionRequest, capability: Capability, operation_id: str, fencing_token: int | None = None) -> ActionResult:
         r = self._resilience
-        ctx = await self._context(request, capability, operation_id)
+        ctx = await self._context(request, capability, operation_id, fencing_token)
         attempts, error = 0, BoundaryError("unknown", "no attempt made")
         unsettled = False  # an earlier attempt may have taken effect and that has not been ruled out
         while attempts < r.max_attempts:
@@ -350,7 +429,9 @@ class Ambassador:
         if self._consecutive_failures >= self._resilience.breaker_threshold:
             self._open_until = time.monotonic() + self._resilience.breaker_cooldown_seconds
 
-    async def _settle(self, intent_id: str, request: ActionRequest, capability: Capability | None, result: ActionResult, reconciled: bool = False) -> None:
+    async def _settle(
+        self, intent_id: str, request: ActionRequest, capability: Capability | None, result: ActionResult, reconciled: bool = False, fencing_token: int | None = None
+    ) -> None:
         # A success is remembered so a repeat is answered, not re-sent. So is an unknown, so a repeat is held
         # rather than sent a second time while the owner finds out what happened. The result is remembered
         # BEFORE the intent is closed: a crash between the two leaves an open intent that recovery settles,
@@ -366,6 +447,7 @@ class Ambassador:
                 "attempts": result.attempts,
                 "reconciled": reconciled,
                 "operation_id": result.operation_id,
+                **({"fencing_token": fencing_token} if fencing_token is not None else {}),
             },
         )
 
@@ -405,39 +487,58 @@ class Ambassador:
         """
         results: list[ActionResult] = []
         for intent in await self.journal.unfinished():
-            request = ActionRequest(
-                intent["capability"],
-                intent["payload"],
-                Principal(intent["subject"], intent.get("on_behalf_of"), frozenset(intent.get("scopes", ()))),
-                intent.get("idempotency_key"),
-                intent.get("correlation_id"),
-            )
-            operation_id = intent["operation_id"]
-            capability = self._capabilities.get(request.capability)
-            if capability is None or capability.on_unknown is Unknown.STOP:
-                # Nothing here can settle it: no lookup, no safe resend. It becomes an exception for the owner.
-                result = ActionResult(Outcome.UNKNOWN, error=_unknown_error(), operation_id=operation_id)
-            elif capability.on_unknown is Unknown.RESEND:
-                result = await self._attempt(request, capability, operation_id)  # the external system ignores a repeated operation id
-            else:  # VERIFY
-                if time.time() - float(intent.get("at", 0)) < capability.settle_after_seconds:
-                    continue  # too soon to believe "no record": a request may still be in flight. Try again later
-                try:
-                    found = await capability.verify(await self._context(request, capability, operation_id), request.payload)  # type: ignore[misc]
-                except TransientError:
-                    continue  # cannot tell yet; leave the intent open and try again later
-                if found is None and capability.absence_is_final:
-                    error = BoundaryError("not_received", "the external system has no record of the action and rejects late requests", retryable=True)
-                    result = _failed(capability, error, 0, operation_id)
-                elif found is None:
-                    # No record is not proof: a late request could still land. Hold it for the owner, offer nothing.
-                    error = BoundaryError("not_received_unproven", "the external system has no record yet, and may still receive it")
-                    result = ActionResult(Outcome.UNKNOWN, error=_unknown_error(error), operation_id=operation_id)
-                else:
-                    result = ActionResult(Outcome.SUCCEEDED, self._sanitizer.clean(found), attempts=1, operation_id=operation_id)
-            await self._settle(intent["intent_id"], request, capability, result, reconciled=True)
-            results.append(result)
+            capability = self._capabilities.get(intent["capability"])
+            held: _Held | None = None
+            if self._leases is not None and (capability is None or capability.side_effect):
+                # The claim on an open intent is the lease on its resource. While the copy that opened it is alive, it
+                # holds the lease and this copy leaves the intent alone; once that copy has died the lease lapses.
+                held = await self._hold(intent.get("resource") or "*", wait=False)
+                if held is None:
+                    continue
+            try:
+                result = await self._reconcile_one(intent, held.token if held else None)
+            except LeaseLost:
+                continue  # another copy settled it first
+            finally:
+                if held is not None:
+                    await self._drop(held)
+            if result is not None:
+                results.append(result)
         return results
+
+    async def _reconcile_one(self, intent: Mapping[str, Any], fencing_token: int | None) -> ActionResult | None:
+        request = ActionRequest(
+            intent["capability"],
+            intent["payload"],
+            Principal(intent["subject"], intent.get("on_behalf_of"), frozenset(intent.get("scopes", ()))),
+            intent.get("idempotency_key"),
+            intent.get("correlation_id"),
+        )
+        operation_id = intent["operation_id"]
+        capability = self._capabilities.get(request.capability)
+        if capability is None or capability.on_unknown is Unknown.STOP:
+            # Nothing here can settle it: no lookup, no safe resend. It becomes an exception for the owner.
+            result = ActionResult(Outcome.UNKNOWN, error=_unknown_error(), operation_id=operation_id)
+        elif capability.on_unknown is Unknown.RESEND:
+            result = await self._attempt(request, capability, operation_id, fencing_token)  # the external system ignores a repeated operation id
+        else:  # VERIFY
+            if time.time() - float(intent.get("at", 0)) < capability.settle_after_seconds:
+                return None  # too soon to believe "no record": a request may still be in flight. Try again later
+            try:
+                found = await capability.verify(await self._context(request, capability, operation_id, fencing_token), request.payload)  # type: ignore[misc]
+            except TransientError:
+                return None  # cannot tell yet; leave the intent open and try again later
+            if found is None and capability.absence_is_final:
+                error = BoundaryError("not_received", "the external system has no record of the action and rejects late requests", retryable=True)
+                result = _failed(capability, error, 0, operation_id)
+            elif found is None:
+                # No record is not proof: a late request could still land. Hold it for the owner, offer nothing.
+                error = BoundaryError("not_received_unproven", "the external system has no record yet, and may still receive it")
+                result = ActionResult(Outcome.UNKNOWN, error=_unknown_error(error), operation_id=operation_id)
+            else:
+                result = ActionResult(Outcome.SUCCEEDED, self._sanitizer.clean(found), attempts=1, operation_id=operation_id)
+        await self._settle(intent["intent_id"], request, capability, result, reconciled=True, fencing_token=fencing_token)
+        return result
 
     # ---- manual exceptions: an unknown outcome nothing here could settle ---
 

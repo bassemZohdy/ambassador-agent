@@ -31,6 +31,13 @@ class PermanentError(Exception):
         self.code = code
 
 
+class LeaseLost(Exception):
+    """A write was refused because the replica no longer holds the lease it carries a token for.
+
+    Raised by a journal that checks the fencing token in the same atomic step as the write. Nothing was written.
+    """
+
+
 @runtime_checkable
 class Connector(Protocol):
     """Deterministic access to the external system (REST, SOAP, queue, MCP tool, another agent...)."""
@@ -87,6 +94,22 @@ class Journal(Protocol):
     async def unresolved(self) -> list[Mapping[str, Any]]: ...
 
     async def resolve(self, operation_id: str, result: ActionResult, by: str, note: str) -> None: ...
+
+
+class Leases(Protocol):
+    """Mutual exclusion per resource between replicas: a time-limited lease that carries a fencing token.
+
+    `acquire` returns a token, or None while another replica holds an unexpired lease. Tokens for one resource only
+    grow, and a lease that lapsed is given to the next caller with a higher token. A journal that implements this
+    (see `SqliteJournal`) can check the token in the same atomic step as its write, which is what makes a stalled
+    replica harmless once another has taken over. The external system can check it too.
+    """
+
+    async def acquire(self, resource: str, holder: str, ttl_seconds: float) -> int | None: ...
+
+    async def renew(self, resource: str, holder: str, token: int, ttl_seconds: float) -> bool: ...
+
+    async def release(self, resource: str, holder: str, token: int) -> None: ...
 
 
 class Sanitizer(Protocol):

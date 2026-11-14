@@ -72,7 +72,7 @@ See [the reliability rule](pattern.md#reliability-rule-the-journal) and [what th
 
 ## "Isn't the ambassador a single point of failure?"
 
-For its boundary, yes, and the pattern says so. Run more than one copy. That needs more than a second process: mutual exclusion per resource across copies, one shared journal, a claim on each open intent, and an atomic check and write. The pattern lists options and does not choose among them. The reference implementation does not yet demonstrate a multi-replica run, and says so.
+For its boundary, yes, and the pattern says so. Run more than one copy. That needs more than a second process: mutual exclusion per resource across copies, one shared journal, a claim on each open intent, and an atomic check and write. The pattern lists options and does not choose among them. The reference implementation demonstrates one option, a lease with a fencing token on a shared SQLite file, including a copy killed mid-task. It does not run on a networked store, and the pattern has no use in production yet.
 
 See [more than one replica](pattern.md#more-than-one-replica) and the [conformance rules for replicas](conformance.md#more-than-one-replica).
 

@@ -204,7 +204,7 @@ async def test_a_shared_journal_makes_a_second_replica_refuse_a_busy_resource():
 
 
 async def test_two_replicas_are_not_mutually_exclusive_when_the_check_and_the_write_are_not_atomic():
-    """A known limit, pinned so it is not mistaken for a guarantee: the locks here are in-process.
+    """A known limit, pinned so it is not mistaken for a guarantee: the locks here are in-process (tests/test_replicas.py shows the lease that closes it).
 
     Both replicas read the journal before either has written its intent, so both proceed. A real deployment needs
     one of the options in "More than one replica" in docs/pattern.md: a partition by resource key, a single active
