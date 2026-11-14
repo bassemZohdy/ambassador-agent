@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TASK-022** (test): Test the A2A weak row from the client's side. Three tests play a client that retries every reply it does not understand: `unknown` carries the real outcome, the operation id and no fallback; retries under the same key never book a second time; retries under new keys are refused as `resource_held`. The safety does not depend on the client understanding `unknown`. Ref: docs/protocol-mapping.md#the-current-mapping-for-unknown. Validated: `cd reference/python && pytest tests/test_a2a_unknown.py`. Docs: updated docs/protocol-mapping.md.
 - **TASK-021** (docs): Record the Zenodo DOI. The README shows the DOI badge and says how to cite, and `CITATION.cff` carries the concept DOI, which always resolves to the latest version. Ref: docs/plans/PROJECT.md#scope. Validated: `python3 tools/check_docs.py . && cffconvert --validate`. Docs: updated README.md, CITATION.cff.
 
 ## [0.2.2] - 2026-11-14
