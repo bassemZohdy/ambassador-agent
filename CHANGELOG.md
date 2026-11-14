@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **TASK-026** (docs): Stop presenting the lease demonstration as the answer to replicas. The pattern now says to use the platform's coordination service and not to write one, cites Kleppmann and Chubby as the source of leases and fencing, and keeps only the two requirements that follow from its own rules: an open intent holds its resource for every copy, and a settling lookup carries the new holder's token. The detail of the demonstration moves to the reference README, labelled a teaching sketch. Ref: docs/pattern.md#more-than-one-replica. Validated: `python3 tools/check_docs.py .`. Docs: updated docs/pattern.md, docs/influences.md, reference/README.md.
+
 ### Added
 
 - **TASK-025** (docs): Decide what a group ambassador publishes when the delivery class differs between systems. The contract states what holds on every route, fact by fact (may end `unknown`, a duplicate is possible, compensable only if every route compensates), because the classes are not a single ladder. The ambassador applies the class of the route it used and journals the route. New rule C42 and a non-conformant case. Ref: docs/example-group.md#what-this-example-does-not-settle. Validated: `python3 tools/check_docs.py .`. Docs: updated docs/pattern.md, docs/conformance.md, docs/example-group.md.

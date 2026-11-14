@@ -208,18 +208,14 @@ The pattern does not choose how to get mutual exclusion. Three options fit:
 
 How these are run, on Kubernetes or elsewhere, is a deployment choice and not part of the pattern.
 
-#### What a lease with fencing needs to be right
+Use the coordination your platform already provides: a lock or lease service, a row lock in the journal's own database, or a work queue that keys tasks to one consumer. Do not write your own. Lease and fencing tokens are established techniques ([Kleppmann](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html), [Chubby](https://research.google/pubs/the-chubby-lock-service-for-loosely-coupled-distributed-systems/)), and [influences](influences.md) lists where they come from.
 
-The [reference implementation](../reference/README.md) runs the third option on one shared SQLite file, and its tests (`tests/test_replicas.py`) kill a real process to check these points. They are the parts that are easy to get wrong:
+Two requirements follow from this pattern's own rules, whichever mechanism is used:
 
-- **The lease covers the whole check and write.** A replica takes the lease on the resource before it reads the journal, keeps it alive while the task runs, and lets it go after the outcome is recorded. Without the lease two copies read "nothing open" before either writes.
-- **The token is checked where the write happens.** The journal refuses to open an intent under a token that is no longer the newest for the resource, and refuses to settle an intent after another copy has taken the resource over. A replica that stalled past its lease finds this out on its next write, not by noticing the time.
-- **The token travels to the external system, and the lookup carries it too.** A stalled replica's request may still be on its way. The external system can refuse an older token only after it has seen a newer one, and a lookup that carries the new token counts. That is what makes "no record" final for the new holder. If the external system ignores the token on a lookup, the new holder may call a booking failed and then see the old one land.
-- **An open intent is claimed by taking the lease on its resource.** While the copy that opened it is alive it holds the lease, and no other copy touches the intent. When it dies it stops renewing, and the lease lapses after its time to live. That time is how long a dead copy's intent waits, and nothing shortens it safely: a copy that is only slow looks the same.
-- **A repeat on another copy is still held.** An open intent holds its resource for every copy, so a retry under a new key is refused until someone settles it, and a repeat under the same key is answered as `unknown` from the record, never sent again.
-- **The clock matters.** Copies on one host share a clock. Copies on several hosts need clocks that agree to well within the lease, or a store that keeps the time itself.
+- **An open intent holds its resource for every copy.** A retry under a new key is refused until someone settles the intent, wherever the retry lands. A repeat under the same key is answered from the record as `unknown` and never sent again.
+- **A lookup that settles an intent carries the new holder's token too.** A stalled copy's request may still be on its way, and the external system can refuse an older token only after it has seen a newer one. If a lookup does not raise that fence, "no record" is a guess and the stalled copy's request can still land. This is what makes [rule C17](conformance.md) hold across copies.
 
-The reference does not show the other two options, a store other than one SQLite file, or a partner that checks the token for a real capability.
+The [reference implementation](../reference/README.md#what-the-replica-demonstration-shows) shows one mechanism on one SQLite file, as a teaching sketch and not a recommendation.
 
 ### Discovery
 
