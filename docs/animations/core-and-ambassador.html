@@ -153,7 +153,7 @@ footer a { color: var(--accent); }
   <div class="stage">
     <svg viewBox="0 0 960 430" role="img" aria-labelledby="svgt svgd" id="svg">
       <title id="svgt">The core agent, the ambassador and the courier system</title>
-      <desc id="svgd">A request travels from the core agent into the ambassador, through admission and the journal, across the boundary to the courier system, and the answer travels back.</desc>
+      <desc id="svgd">A request travels from the core agent into the ambassador, through policy and admission and the journal, across the boundary to the courier system, and the answer travels back.</desc>
 
       <line class="boundary" x1="710" y1="24" x2="710" y2="414"/>
       <text class="t-bound" x="716" y="40">boundary</text>
@@ -170,8 +170,9 @@ footer a { color: var(--accent); }
       <text class="t-frame" x="336" y="46">AMBASSADOR · ONE PER BOUNDARY</text>
 
       <rect class="st" id="st-adm" x="340" y="60" width="130" height="86" rx="8"/>
-      <text class="t-title" x="405" y="84" text-anchor="middle">Admission</text>
-      <text class="t-sub" x="405" y="101" text-anchor="middle">policy, room to work</text>
+      <text class="t-title" x="405" y="80" text-anchor="middle">Policy and</text>
+      <text class="t-title" x="405" y="97" text-anchor="middle">admission</text>
+      <text class="t-sub" x="405" y="118" text-anchor="middle">who, and how much</text>
 
       <rect class="st" id="st-jrn" x="510" y="60" width="130" height="86" rx="8"/>
       <text class="t-title" x="575" y="84" text-anchor="middle">Journal</text>
@@ -247,7 +248,7 @@ footer a { color: var(--accent); }
     return [
       { t: "The core agent asks", d: "The core agent opens a task for one capability and names the person it acts for. Because the action has a side effect, the task carries an idempotency key. The core agent has no idea which courier system is behind the ambassador.",
         tok: { from: P.core, to: P.amb, label: "book courier · k-1042", kind: "req" } },
-      { t: "Admission checks the task", d: "The ambassador checks policy and admission: is this caller allowed to book for this order, and is there room to take another task? Only an admitted task goes on.",
+      { t: "Policy and admission check the task", d: "Two separate checks. Policy asks whether this caller may book for this order. Admission asks whether there is room to take another task. Only a task that passes both goes on.",
         tok: { from: P.amb, to: P.adm, label: "k-1042", kind: "req" }, lit: ["adm"] },
       { t: "The intent is journalled first", d: "Before it acts, the ambassador writes the intent to its journal under an operation id, op-1042. If it stopped right now, the journal would show an intent with no outcome.",
         tok: { from: P.adm, to: P.jrn, label: "intent · op-1042", kind: "cmd" }, lit: ["jrn"],
@@ -277,7 +278,7 @@ footer a { color: var(--accent); }
     { id: "rejected", name: "Rejected", steps: [
       { t: "The core agent asks", d: "The core agent asks to book a courier for order 1042, on behalf of a person who does not own that order.",
         tok: { from: P.core, to: P.amb, label: "book courier · k-2001", kind: "req" } },
-      { t: "Admission refuses", d: "Policy says this person may not book for this order. The ambassador stops here. No intent is written and nothing is sent.",
+      { t: "Policy refuses", d: "Policy says this person may not book for this order. The ambassador stops here. No intent is written and nothing is sent. A full waiting room is refused the same way, with a retry hint.",
         tok: { from: P.amb, to: P.adm, label: "k-2001", kind: "req" }, lit: ["adm"], bad: true },
       { t: "The core agent gets rejected", d: "Rejected means refused before the boundary was crossed. The courier system never saw the task, so there is nothing to reconcile later.",
         tok: { from: P.adm, to: P.core, label: "rejected", kind: "bad" }, pill: { text: "outcome: rejected", tone: "bad" } }

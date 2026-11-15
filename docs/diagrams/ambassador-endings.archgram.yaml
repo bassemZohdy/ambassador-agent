@@ -1,0 +1,36 @@
+archgram: 1
+title: How a task ends at the ambassador
+description: >-
+  A core agent opens a task. The ambassador checks policy and admission,
+  journals its intent and sends the command to the courier system. The
+  task ends in one of four ways: the courier answers and the outcome is
+  succeeded, policy refuses it (or the waiting room is full) and it is
+  rejected, no answer comes and the outcome is unknown with the
+  resource held, or the ambassador asks the courier by operation id and
+  finds the answer.
+direction: auto
+still: legend
+nodes:
+  - { id: core, kind: agent, label: Core agent, note: your language, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: gate, kind: check, label: Policy and admission, note: "refuse before crossing, limit the load", frame: ambassador, source: ["../pattern.md#Refuses a task before the boundary is crossed", "../pattern.md#Controls how much work it takes on"] }
+  - { id: agent, kind: agent, label: Ambassador, note: owns the boundary, frame: ambassador, source: "../pattern.md#on each boundary and make it the only path across" }
+  - { id: journal, kind: database, label: Journal, note: "intent, then outcome", frame: ambassador, source: "../pattern.md#Records intent and outcome for every crossing" }
+  - { id: hold, kind: database, label: Held resources, note: until a person settles, frame: ambassador, source: "../pattern.md#The open exception holds its resource" }
+  - { id: courier, kind: service, label: Courier system, note: not ours, variant: external, source: "../pattern.md#many external systems you do not control" }
+frames:
+  - { id: ambassador, label: "One ambassador per boundary" }
+edges:
+  - { from: core, to: gate, label: open task, source: "../pattern.md#Only the core opens a task" }
+  - { from: gate, to: agent, label: admitted, source: "../pattern.md#One task at a time per resource" }
+  - { from: agent, to: journal, label: "intent, outcome", source: "../pattern.md#it records its intent" }
+  - { from: agent, to: courier, label: "command, op-id", source: "../pattern.md#Before an ambassador acts on the external system" }
+  - { from: courier, to: agent, label: answer, style: dashed, source: "../pattern.md#ask the external system whether it received the operation id" }
+  - { from: agent, to: hold, label: "hold if unknown", style: dashed, source: "../pattern.md#The open exception holds its resource" }
+  - { from: agent, to: core, label: outcome, style: dashed, source: "../pattern.md#Four outcomes, always" }
+flows:
+  - { name: "ask: admitted, intent journalled", steps: [core, gate, agent, journal] }
+  - { name: "succeeded: the courier answers", steps: [agent, courier, agent, core] }
+  - { name: "rejected: policy refuses, or the room is full", steps: [core, gate], stop: gate }
+  - { name: "sent, no answer comes", steps: [agent, courier] }
+  - { name: "unknown: held, told with no fallback", steps: [agent, [hold, core]] }
+  - { name: "or asked by operation id: succeeded", steps: [agent, courier, agent, core] }

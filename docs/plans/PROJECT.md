@@ -89,3 +89,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-15 · posted the animation on LinkedIn and X; GitHub Pages enabled (main, /docs)
 - 2026-11-15 · media · archgram sequence diagram of the unknown timeout added (TASK-030); recorded as MP4 and GIF for the posts, not posted yet
 - 2026-11-15 · deleted the two link posts (LinkedIn and X); to be replaced by posts with media
+- 2026-11-15 · media · tabbed archgram animation of the six endings added (TASK-031); policy and admission relabelled as one node after the mix-up was caught; GIF recorded for the posts

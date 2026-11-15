@@ -80,6 +80,7 @@ The main terms are below. The [glossary](glossary.md) has all of them, grouped.
 | Run more than one copy on a workflow platform | [Running replicas on Temporal](on-temporal.md) |
 | See a timeout stay unknown, step by step | [Sequence diagram](diagrams/unknown-timeout.svg) |
 | Watch a request move between the core agent and the ambassador | [Animation](animations/core-and-ambassador.html) |
+| See the six ways a task can end, one flow at a time | [Tabbed animation](animations/how-a-task-ends.html) and [diagram](diagrams/ambassador-endings.svg) |
 | See how the transactional outbox works and how the journal differs | [The outbox and the journal](outbox-comparison.md) |
 | Know where the ideas came from | [Influences](influences.md) |
 | Choose between this and a neighbouring pattern | [Comparison and prior art](comparison.md) |
