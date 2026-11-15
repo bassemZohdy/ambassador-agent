@@ -86,3 +86,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-14 · answers on Temporal · mapping page and an experimental adapter built (TASK-027); the Ambassador's own journal stays the source of truth; tests pass against a real dev server in CI
 - 2026-11-15 · outbox question · explained in docs/outbox-comparison.md with two animated diagrams (TASK-028); nothing in the pattern changed
 - 2026-11-15 · animation · core agent and ambassador page added under docs/animations (TASK-029); posting not possible from here, no social channel is connected
+- 2026-11-15 · posted the animation on LinkedIn and X; GitHub Pages enabled (main, /docs)
