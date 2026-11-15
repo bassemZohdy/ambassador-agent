@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambassador and Core Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: a header, four scenario tabs, one stage that moves, then the caption and the journal side by side. */
+  --bg: #f3f6f8;
+  --surface: #ffffff;
+  --ink: #14202b;
+  --muted: #55677a;
+  --line: #cfd9e1;
+  --accent: #0b7a75;
+  --accent-soft: #dff1ef;
+  --ok: #2f7d32;
+  --warn: #a85f00;
+  --bad: #b3261e;
+  --info: #3b5fa8;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1920; --surface: #15252f; --ink: #e5eef3; --muted: #94a7b6; --line: #2a3d4a;
+    --accent: #3cc4bb; --accent-soft: #123a3b; --ok: #72d076; --warn: #f2a93c; --bad: #ff7f76; --info: #8fb0f0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1920; --surface: #15252f; --ink: #e5eef3; --muted: #94a7b6; --line: #2a3d4a;
+  --accent: #3cc4bb; --accent-soft: #123a3b; --ok: #72d076; --warn: #f2a93c; --bad: #ff7f76; --info: #8fb0f0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.15; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); max-width: 68ch; margin: 0; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button, .controls button {
+  font: inherit; font-weight: 500; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; min-height: 40px;
+}
+.tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .tabs button[aria-selected="true"] { color: #062321; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabs button[aria-selected="true"] { color: #062321; } }
+button:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+.tabs button:hover, .controls button:hover { border-color: var(--accent); }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px; }
+.stage svg { display: block; width: 100%; height: auto; }
+.below { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .below { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.count { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.card h2 { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.2; margin: 0; }
+.card p { margin: 0; max-width: 62ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls .primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 96px; }
+:root[data-theme="dark"] .controls .primary { color: #062321; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .controls .primary { color: #062321; } }
+.dots { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.dots button { min-height: 0; width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 1px solid var(--muted); background: transparent; }
+.dots button[aria-current="step"] { background: var(--accent); border-color: var(--accent); }
+.dots button.done { background: var(--muted); }
+.journal h2 { font-size: 1.05rem; }
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+.rows li { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: baseline; border-left: 3px solid var(--line); padding: 4px 0 4px 10px; font-size: 0.92rem; }
+.rows li .k { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.rows li.ok { border-left-color: var(--ok); }
+.rows li.warn { border-left-color: var(--warn); }
+.rows li.bad { border-left-color: var(--bad); }
+.rows li.info { border-left-color: var(--accent); }
+.rows li.new { animation: rowin 0.5s ease-out; }
+@keyframes rowin { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+.empty { color: var(--muted); font-size: 0.92rem; }
+code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
+.outcomes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 16px; margin: 0; padding: 0; list-style: none; font-size: 0.9rem; }
+.outcomes li { display: flex; gap: 8px; align-items: baseline; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; transform: translateY(1px); }
+footer { color: var(--muted); font-size: 0.85rem; }
+
+/* SVG */
+.box { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+.box.ext { stroke-dasharray: 6 5; stroke: var(--muted); }
+.frame { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.st { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: stroke 0.3s, stroke-width 0.3s, fill 0.3s; }
+.st.lit { stroke: var(--accent); stroke-width: 3; }
+.st.lit.bad { stroke: var(--bad); }
+.st.warnfill { stroke: var(--warn); stroke-width: 3; }
+.t-title { font-family: var(--font-display); font-weight: 600; font-size: 15px; fill: var(--ink); }
+.t-sub { font-family: var(--font-body); font-size: 11.5px; fill: var(--muted); }
+.t-frame { font-family: var(--font-mono); font-size: 11px; fill: var(--accent); letter-spacing: 0.03em; }
+.lane { stroke: var(--line); stroke-width: 2; stroke-dasharray: 3 5; fill: none; }
+.boundary { stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 8 6; }
+.t-bound { font-family: var(--font-mono); font-size: 11px; fill: var(--warn); }
+.tok { transition: transform 1s cubic-bezier(.45,0,.2,1), opacity .3s; opacity: 0; }
+.tok.show { opacity: 1; }
+.tok rect { stroke-width: 1.5; }
+.tok text { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-anchor: middle; dominant-baseline: central; }
+.tok.req rect { fill: var(--accent); stroke: var(--accent); }
+.tok.req text { fill: #fff; }
+.tok.cmd rect { fill: var(--surface); stroke: var(--ink); }
+.tok.cmd text { fill: var(--ink); }
+.tok.q rect { fill: var(--surface); stroke: var(--info); }
+.tok.q text { fill: var(--info); }
+.tok.ok rect { fill: var(--ok); stroke: var(--ok); }
+.tok.ok text { fill: #fff; }
+.tok.warn rect { fill: var(--warn); stroke: var(--warn); }
+.tok.warn text { fill: #fff; }
+.tok.bad rect { fill: var(--bad); stroke: var(--bad); }
+.tok.bad text { fill: #fff; }
+:root[data-theme="dark"] .tok.req text, :root[data-theme="dark"] .tok.ok text, :root[data-theme="dark"] .tok.warn text, :root[data-theme="dark"] .tok.bad text { fill: #07161c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tok.req text, :root:not([data-theme="light"]) .tok.ok text, :root:not([data-theme="light"]) .tok.warn text, :root:not([data-theme="light"]) .tok.bad text { fill: #07161c; } }
+.pill rect { stroke-width: 1.5; fill: transparent; stroke: var(--line); }
+.pill text { font-family: var(--font-mono); font-size: 13px; text-anchor: middle; dominant-baseline: central; fill: var(--muted); }
+.pill.ok rect { fill: var(--ok); stroke: var(--ok); } .pill.warn rect { fill: var(--warn); stroke: var(--warn); } .pill.bad rect { fill: var(--bad); stroke: var(--bad); }
+.pill.ok text, .pill.warn text, .pill.bad text { fill: #fff; font-weight: 500; }
+:root[data-theme="dark"] .pill.ok text, :root[data-theme="dark"] .pill.warn text, :root[data-theme="dark"] .pill.bad text { fill: #07161c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill.ok text, :root:not([data-theme="light"]) .pill.warn text, :root:not([data-theme="light"]) .pill.bad text { fill: #07161c; } }
+.silence { opacity: 0; transition: opacity .3s; }
+.silence.show { opacity: 1; }
+.silence rect { fill: var(--surface); stroke: var(--warn); stroke-width: 1.5; }
+.silence text { font-family: var(--font-mono); font-size: 12px; fill: var(--warn); text-anchor: middle; dominant-baseline: central; }
+.silence.show .ring { animation: ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.ring { fill: none; stroke: var(--warn); stroke-width: 2; }
+@keyframes ring { from { transform: scale(.6); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .tok { transition: opacity .01s; }
+  .rows li.new, .silence.show .ring { animation: none; }
+  .st { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ambassador and Core Agent</h1>
+    <p class="sub">One request goes from the core agent to a courier system it does not control. Pick what happens at the boundary and step through it. Each ambassador owns one boundary.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Scenario" id="tabs"></div>
+
+  <div class="stage">
+    <svg viewBox="0 0 960 430" role="img" aria-labelledby="svgt svgd" id="svg">
+      <title id="svgt">The core agent, the ambassador and the courier system</title>
+      <desc id="svgd">A request travels from the core agent into the ambassador, through admission and the journal, across the boundary to the courier system, and the answer travels back.</desc>
+
+      <line class="boundary" x1="710" y1="24" x2="710" y2="414"/>
+      <text class="t-bound" x="716" y="40">boundary</text>
+      <text class="t-bound" x="716" y="54">you do not control</text>
+
+      <path class="lane" d="M200 236 H320"/>
+      <path class="lane" d="M660 236 H760"/>
+
+      <rect class="box" x="30" y="160" width="170" height="100" rx="10"/>
+      <text class="t-title" x="115" y="188" text-anchor="middle">Core agent</text>
+      <text class="t-sub" x="115" y="206" text-anchor="middle">asks in its own language</text>
+
+      <rect class="frame" x="320" y="24" width="340" height="390" rx="14"/>
+      <text class="t-frame" x="336" y="46">AMBASSADOR · ONE PER BOUNDARY</text>
+
+      <rect class="st" id="st-adm" x="340" y="60" width="130" height="86" rx="8"/>
+      <text class="t-title" x="405" y="84" text-anchor="middle">Admission</text>
+      <text class="t-sub" x="405" y="101" text-anchor="middle">policy, room to work</text>
+
+      <rect class="st" id="st-jrn" x="510" y="60" width="130" height="86" rx="8"/>
+      <text class="t-title" x="575" y="84" text-anchor="middle">Journal</text>
+      <text class="t-sub" x="575" y="101" text-anchor="middle">intent, then outcome</text>
+
+      <rect class="box" x="420" y="166" width="140" height="90" rx="10"/>
+      <text class="t-title" x="490" y="190" text-anchor="middle">Ambassador</text>
+      <text class="t-sub" x="490" y="207" text-anchor="middle">owns this boundary</text>
+
+      <rect class="st" id="st-hold" x="420" y="318" width="140" height="74" rx="8"/>
+      <text class="t-title" x="490" y="342" text-anchor="middle">Held resources</text>
+      <text class="t-sub" id="holdtxt" x="490" y="362" text-anchor="middle">none</text>
+
+      <rect class="box ext" id="st-cour" x="760" y="160" width="170" height="100" rx="10"/>
+      <text class="t-title" x="845" y="188" text-anchor="middle">Courier system</text>
+      <text class="t-sub" x="845" y="206" text-anchor="middle">external, not ours</text>
+
+      <g class="pill" id="pill" transform="translate(30 282)">
+        <rect width="170" height="32" rx="16"/>
+        <text x="85" y="16" id="pilltxt">outcome: none yet</text>
+      </g>
+
+      <g class="silence" id="silence" transform="translate(740 292)">
+        <circle class="ring" cx="0" cy="0" r="16"/>
+        <rect x="-62" y="-14" width="124" height="28" rx="14"/>
+        <text x="0" y="0">no answer</text>
+      </g>
+
+      <g class="tok" id="tok"><rect id="tokr" height="26" rx="13" y="-13"/><text id="tokt" x="0" y="0"></text></g>
+    </svg>
+  </div>
+
+  <div class="below">
+    <section class="card" aria-live="polite">
+      <div class="count" id="count"></div>
+      <h2 id="title"></h2>
+      <p id="text"></p>
+      <div class="controls">
+        <button type="button" id="prev">Back</button>
+        <button type="button" class="primary" id="play">Play</button>
+        <button type="button" id="next">Next</button>
+        <div class="dots" id="dots" aria-label="Steps"></div>
+      </div>
+    </section>
+    <section class="card journal">
+      <h2>The ambassador's journal</h2>
+      <ul class="rows" id="rows"></ul>
+      <div class="empty" id="empty">Nothing written yet.</div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>The four outcomes</h2>
+    <ul class="outcomes">
+      <li><span class="dot" style="background:var(--ok)"></span><span><code>succeeded</code> it was carried out</span></li>
+      <li><span class="dot" style="background:var(--muted)"></span><span><code>failed</code> known not to have been carried out</span></li>
+      <li><span class="dot" style="background:var(--bad)"></span><span><code>rejected</code> refused before the boundary was crossed</span></li>
+      <li><span class="dot" style="background:var(--warn)"></span><span><code>unknown</code> may or may not have happened</span></li>
+    </ul>
+  </section>
+
+  <footer>A personal project. The shop, the courier and the order are invented for this example.</footer>
+</div>
+
+<script>
+(function () {
+  var P = { core: [115, 236], amb: [490, 236], cour: [845, 236], adm: [405, 126], jrn: [575, 126] };
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var STEP_MS = 3600;
+
+  // Shared opening steps for the three scenarios that reach the courier.
+  function opening() {
+    return [
+      { t: "The core agent asks", d: "The core agent opens a task for one capability and names the person it acts for. Because the action has a side effect, the task carries an idempotency key. The core agent has no idea which courier system is behind the ambassador.",
+        tok: { from: P.core, to: P.amb, label: "book courier · k-1042", kind: "req" } },
+      { t: "Admission checks the task", d: "The ambassador checks policy and admission: is this caller allowed to book for this order, and is there room to take another task? Only an admitted task goes on.",
+        tok: { from: P.amb, to: P.adm, label: "k-1042", kind: "req" }, lit: ["adm"] },
+      { t: "The intent is journalled first", d: "Before it acts, the ambassador writes the intent to its journal under an operation id, op-1042. If it stopped right now, the journal would show an intent with no outcome.",
+        tok: { from: P.adm, to: P.jrn, label: "intent · op-1042", kind: "cmd" }, lit: ["jrn"],
+        rows: [{ k: "intent", text: "book courier for order 1042, op-1042", tone: "info" }] },
+      { t: "The command crosses the boundary", d: "The command goes to the courier system under the same operation id on every send. That is what lets the courier ignore a repeat, or be asked about it later.",
+        tok: { from: P.amb, to: P.cour, label: "book · op-1042", kind: "cmd" }, lit: ["cour"] }
+    ];
+  }
+  function silentOpening() {
+    return opening().concat([
+      { t: "Nothing comes back", d: "The request was sent and no answer arrived. A timeout is treated like a crash: the courier may have made the booking or may not, and the ambassador cannot tell which. It is never reported as failed.",
+        tok: null, lit: ["cour"], silence: true }
+    ]);
+  }
+
+  var SCENARIOS = [
+    { id: "ok", name: "Succeeded", steps: opening().concat([
+      { t: "The courier answers", d: "The courier confirms the booking under op-1042.",
+        tok: { from: P.cour, to: P.amb, label: "confirmed", kind: "ok" }, lit: ["cour"] },
+      { t: "The outcome is journalled after", d: "The ambassador records the outcome after the call. The intent and its outcome are now a pair in the journal.",
+        tok: { from: P.amb, to: P.jrn, label: "outcome", kind: "cmd" }, lit: ["jrn"],
+        rows: [{ k: "outcome", text: "succeeded, op-1042", tone: "ok" }] },
+      { t: "The core agent gets a fact", d: "The core agent receives one of four outcomes in its own language. succeeded says only that the booking was carried out.",
+        tok: { from: P.amb, to: P.core, label: "succeeded", kind: "ok" }, pill: { text: "outcome: succeeded", tone: "ok" } }
+    ]) },
+
+    { id: "rejected", name: "Rejected", steps: [
+      { t: "The core agent asks", d: "The core agent asks to book a courier for order 1042, on behalf of a person who does not own that order.",
+        tok: { from: P.core, to: P.amb, label: "book courier · k-2001", kind: "req" } },
+      { t: "Admission refuses", d: "Policy says this person may not book for this order. The ambassador stops here. No intent is written and nothing is sent.",
+        tok: { from: P.amb, to: P.adm, label: "k-2001", kind: "req" }, lit: ["adm"], bad: true },
+      { t: "The core agent gets rejected", d: "Rejected means refused before the boundary was crossed. The courier system never saw the task, so there is nothing to reconcile later.",
+        tok: { from: P.adm, to: P.core, label: "rejected", kind: "bad" }, pill: { text: "outcome: rejected", tone: "bad" } }
+    ] },
+
+    { id: "stop", name: "Timeout, cannot ask", steps: silentOpening().concat([
+      { t: "The outcome is unknown, and held", d: "This capability declares the stop class: the courier can neither deduplicate nor be asked. So the ambassador sends nothing more, records unknown and holds the resource for order 1042.",
+        tok: { from: P.amb, to: P.jrn, label: "outcome", kind: "warn" }, lit: ["jrn", "hold"], hold: "order 1042 · unknown",
+        rows: [{ k: "outcome", text: "unknown, op-1042, resource held", tone: "warn" }] },
+      { t: "The core agent is told the truth", d: "The answer is unknown, with the operation id. No fallback channel is offered, because the booking may already exist.",
+        tok: { from: P.amb, to: P.core, label: "unknown · op-1042", kind: "warn" }, pill: { text: "outcome: unknown", tone: "warn" } },
+      { t: "A retry under the same key", d: "The core agent tries again with the same key. The ambassador answers from its journal and sends nothing to the courier.",
+        tok: { from: P.core, to: P.amb, label: "retry · k-1042", kind: "req" }, lit: ["hold"] },
+      { t: "Answered from the record", d: "The answer is still unknown. A repeat never goes out while the exception is open.",
+        tok: { from: P.amb, to: P.core, label: "unknown (record)", kind: "warn" } },
+      { t: "A retry under a new key", d: "A new key looks like a new request for the same thing, and it could book twice. The core agent should not do this, and the ambassador backs the rule up.",
+        tok: { from: P.core, to: P.amb, label: "retry · k-1043", kind: "req" }, lit: ["hold"] },
+      { t: "The held resource refuses it", d: "Order 1042 is held, so the new task is rejected with resource_held until a person settles the exception.",
+        tok: { from: P.amb, to: P.core, label: "rejected · held", kind: "bad" }, pill: { text: "outcome: rejected", tone: "bad" }, lit: ["hold"], bad: true },
+      { t: "A person settles it", d: "The owner checks the courier's own records, finds no booking, and records failed with a note. The hold lifts, and only now may another channel be offered.",
+        tok: null, lit: ["jrn", "hold"], hold: "none",
+        rows: [{ k: "settled", text: "failed, by the owner, from the courier's records", tone: "ok" }], pill: { text: "settled: failed", tone: "ok" } }
+    ]) },
+
+    { id: "verify", name: "Timeout, can ask", steps: silentOpening().concat([
+      { t: "Ask by operation id", d: "This capability declares the verify class: the courier can be asked about an operation id. The ambassador asks instead of sending again, so there can be at most one booking.",
+        tok: { from: P.amb, to: P.cour, label: "got op-1042?", kind: "q" }, lit: ["cour"] },
+      { t: "The courier has it", d: "The courier looks up op-1042 and finds the booking.",
+        tok: { from: P.cour, to: P.amb, label: "yes, booked", kind: "ok" }, lit: ["cour"] },
+      { t: "The outcome is journalled", d: "A record means succeeded. The intent that had no outcome now has one.",
+        tok: { from: P.amb, to: P.jrn, label: "outcome", kind: "cmd" }, lit: ["jrn"],
+        rows: [{ k: "outcome", text: "succeeded, op-1042, found by lookup", tone: "ok" }] },
+      { t: "The core agent gets a fact", d: "The core agent never saw the timeout. Had the courier found no record, and had the capability declared that no record is final, the outcome would be failed and a retry safe. If it could not be believed, the outcome would stay unknown.",
+        tok: { from: P.amb, to: P.core, label: "succeeded", kind: "ok" }, pill: { text: "outcome: succeeded", tone: "ok" } }
+    ]) }
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var svgTok = $("tok"), tokr = $("tokr"), tokt = $("tokt");
+  var scen = 0, step = 0, timer = null, playing = false, lastRows = 0;
+
+  function steps() { return SCENARIOS[scen].steps; }
+
+  function buildTabs() {
+    var tabs = $("tabs");
+    SCENARIOS.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.setAttribute("role", "tab"); b.textContent = s.name;
+      b.addEventListener("click", function () { selectScenario(i, true); });
+      tabs.appendChild(b);
+    });
+  }
+  function buildDots() {
+    var dots = $("dots"); dots.innerHTML = "";
+    steps().forEach(function (_, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.setAttribute("aria-label", "Step " + (i + 1));
+      b.addEventListener("click", function () { stop(); show(i, true); });
+      dots.appendChild(b);
+    });
+  }
+
+  function setTok(tok, animate) {
+    if (!tok) { svgTok.classList.remove("show"); return; }
+    tokt.textContent = tok.label;
+    var w = Math.max(70, tokt.getComputedTextLength() + 26);
+    tokr.setAttribute("width", w); tokr.setAttribute("x", -w / 2);
+    svgTok.setAttribute("class", "tok " + tok.kind);
+    var from = "translate(" + tok.from[0] + "px," + tok.from[1] + "px)";
+    var to = "translate(" + tok.to[0] + "px," + tok.to[1] + "px)";
+    if (animate && !reduce) {
+      svgTok.style.transition = "none"; svgTok.style.transform = from; svgTok.style.opacity = "1";
+      void svgTok.getBoundingClientRect();
+      svgTok.style.transition = ""; svgTok.style.opacity = "";
+      svgTok.classList.add("show");
+      svgTok.style.transform = to;
+    } else {
+      svgTok.style.transition = "none"; svgTok.style.transform = to; svgTok.style.opacity = "";
+      svgTok.classList.add("show");
+      void svgTok.getBoundingClientRect(); svgTok.style.transition = "";
+    }
+  }
+
+  function stateAt(i) {
+    var st = { rows: [], pill: null, hold: "none" };
+    var list = steps();
+    for (var k = 0; k <= i; k++) {
+      if (list[k].rows) st.rows = st.rows.concat(list[k].rows);
+      if (list[k].pill) st.pill = list[k].pill;
+      if (list[k].hold !== undefined) st.hold = list[k].hold;
+    }
+    return st;
+  }
+
+  function show(i, animate) {
+    step = i;
+    var s = steps()[i], st = stateAt(i);
+    $("count").textContent = "Step " + (i + 1) + " of " + steps().length + " · " + SCENARIOS[scen].name;
+    $("title").textContent = s.t; $("text").textContent = s.d;
+
+    ["adm", "jrn", "hold"].forEach(function (n) {
+      var el = $("st-" + n), on = (s.lit || []).indexOf(n) >= 0;
+      el.setAttribute("class", "st" + (on ? " lit" : "") + (on && s.bad ? " bad" : "") + (n === "hold" && st.hold !== "none" ? " warnfill" : ""));
+    });
+    $("st-cour").style.stroke = (s.lit || []).indexOf("cour") >= 0 ? "var(--accent)" : "";
+    $("st-cour").style.strokeWidth = (s.lit || []).indexOf("cour") >= 0 ? "3" : "";
+    $("holdtxt").textContent = st.hold;
+    $("silence").classList.toggle("show", !!s.silence);
+
+    var pill = $("pill");
+    pill.setAttribute("class", "pill" + (st.pill ? " " + st.pill.tone : ""));
+    $("pilltxt").textContent = st.pill ? st.pill.text : "outcome: none yet";
+
+    var ul = $("rows"); ul.innerHTML = "";
+    st.rows.forEach(function (r, idx) {
+      var li = document.createElement("li");
+      li.className = r.tone + (animate && idx >= lastRows ? " new" : "");
+      var k = document.createElement("span"); k.className = "k"; k.textContent = r.k;
+      var v = document.createElement("span"); v.textContent = r.text;
+      li.appendChild(k); li.appendChild(v); ul.appendChild(li);
+    });
+    lastRows = st.rows.length;
+    $("empty").style.display = st.rows.length ? "none" : "block";
+
+    setTok(s.tok, animate);
+
+    var dots = $("dots").children;
+    for (var d = 0; d < dots.length; d++) {
+      dots[d].className = d < i ? "done" : "";
+      if (d === i) dots[d].setAttribute("aria-current", "step"); else dots[d].removeAttribute("aria-current");
+    }
+    $("prev").disabled = i === 0;
+    $("next").disabled = i === steps().length - 1;
+    if (!playing) $("play").textContent = i === steps().length - 1 ? "Replay" : "Play";
+  }
+
+  function stop() { playing = false; clearTimeout(timer); $("play").textContent = step === steps().length - 1 ? "Replay" : "Play"; }
+  function tick() {
+    if (!playing) return;
+    if (step >= steps().length - 1) { stop(); return; }
+    show(step + 1, true);
+    timer = setTimeout(tick, STEP_MS);
+  }
+  function start() {
+    if (step >= steps().length - 1) { lastRows = 0; show(0, true); }
+    playing = true; $("play").textContent = "Pause";
+    clearTimeout(timer); timer = setTimeout(tick, STEP_MS);
+  }
+
+  function selectScenario(i, autoplay) {
+    stop(); scen = i; step = 0; lastRows = 0;
+    Array.prototype.forEach.call($("tabs").children, function (b, k) { b.setAttribute("aria-selected", k === i ? "true" : "false"); });
+    buildDots(); show(0, true);
+    if (autoplay && !reduce) start();
+  }
+
+  $("play").addEventListener("click", function () { if (playing) stop(); else start(); });
+  $("next").addEventListener("click", function () { stop(); if (step < steps().length - 1) show(step + 1, true); });
+  $("prev").addEventListener("click", function () { stop(); if (step > 0) show(step - 1, false); });
+
+  buildTabs();
+  selectScenario(0, true);
+})();
+</script>
+</body>
+</html>

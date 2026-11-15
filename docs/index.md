@@ -78,6 +78,7 @@ The main terms are below. The [glossary](glossary.md) has all of them, grouped.
 | See a group ambassador choose between providers and fail over | [Worked example: a group ambassador](example-group.md) |
 | Bind it to a protocol | [Protocol mapping](protocol-mapping.md), with A2A as the reference |
 | Run more than one copy on a workflow platform | [Running replicas on Temporal](on-temporal.md) |
+| Watch a request move between the core agent and the ambassador | [Animation](animations/core-and-ambassador.html) |
 | See how the transactional outbox works and how the journal differs | [The outbox and the journal](outbox-comparison.md) |
 | Know where the ideas came from | [Influences](influences.md) |
 | Choose between this and a neighbouring pattern | [Comparison and prior art](comparison.md) |
