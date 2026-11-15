@@ -1,0 +1,30 @@
+archgram: 1
+diagram: sequence
+title: The transactional outbox
+description: >-
+  The shop saves the order and an outbox row in one transaction. A relay
+  reads the unsent row, publishes it to the broker and marks it sent. If
+  the relay crashes before it marks the row, it publishes the same row
+  again, and the consumer drops the duplicate by message id.
+participants:
+  - { id: shop, kind: service, label: Shop service, source: "../outbox-comparison.md#A shop service takes an order" }
+  - { id: db, kind: database, label: Orders and outbox, source: "../outbox-comparison.md#writes the message to an `outbox` table in the same database transaction" }
+  - { id: relay, kind: service, label: Relay, source: "../outbox-comparison.md#A separate relay process reads the unsent rows" }
+  - { id: broker, kind: queue, label: Broker, variant: external, source: "../outbox-comparison.md#publishes each one to the broker" }
+  - { id: consumer, kind: service, label: Consumer, source: "../outbox-comparison.md#Each consumer therefore deduplicates by message id" }
+messages:
+  - phase: Save both together
+  - { from: shop, to: db, label: "order + outbox row, one transaction", source: "../outbox-comparison.md#writes the message to an `outbox` table in the same database transaction" }
+  - { reply: db, label: both saved or neither }
+  - phase: Publish later
+  - { from: relay, to: db, label: unsent rows, source: "../outbox-comparison.md#reads the unsent rows from the outbox table" }
+  - { reply: db, label: OrderPlaced row }
+  - { from: relay, to: broker, label: publish, source: "../outbox-comparison.md#publishes each one to the broker" }
+  - { from: broker, to: consumer, label: OrderPlaced, async: true }
+  - { from: relay, to: db, label: mark sent, async: true, source: "../outbox-comparison.md#After the broker accepts a message, the relay marks the row as sent" }
+  - phase: Relay crashed before marking
+  - { from: relay, to: db, label: unsent rows, source: "../outbox-comparison.md#it publishes the same row again on restart" }
+  - { reply: db, label: "same row, still unsent" }
+  - { from: relay, to: broker, label: publish again, source: "../outbox-comparison.md#it publishes the same row again on restart" }
+  - { from: broker, to: consumer, label: OrderPlaced again, async: true }
+  - { from: consumer, to: consumer, label: "seen this id, drop it", async: true, refused: true, source: "../outbox-comparison.md#Each consumer therefore deduplicates by message id" }

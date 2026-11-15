@@ -1,0 +1,41 @@
+archgram: 1
+diagram: sequence
+title: The Ambassador journal
+description: >-
+  The ambassador records its intent, then sends the courier's system a
+  command with a stable operation id. When no answer comes, the outcome
+  is unknown and the resource stays held. The ambassador then asks,
+  sends the same id again, or stops by the declared delivery class, and
+  records the outcome.
+participants:
+  - { id: amb, kind: agent, label: Ambassador, source: "../outbox-comparison.md#An ambassador sends a command to a courier company's system" }
+  - { id: journal, kind: database, label: Journal, source: "../outbox-comparison.md#writes the intent to its journal before it acts" }
+  - { id: courier, kind: service, label: Courier system, variant: external, source: "../outbox-comparison.md#system that it does not control" }
+messages:
+  - phase: Record intent first
+  - { from: amb, to: journal, label: intent + operation id, source: "../outbox-comparison.md#writes the intent to its journal before it acts" }
+  - { reply: journal, label: recorded }
+  - phase: Act
+  - { from: amb, to: courier, label: command + operation id, source: "../outbox-comparison.md#It then sends the command with a stable operation id" }
+  - alt:
+      - when: answer arrives
+        messages:
+          - { reply: courier, label: result }
+      - when: no answer
+        messages:
+          - { from: amb, to: amb, label: "timeout = unknown, resource held", async: true, refused: true, source: "../outbox-comparison.md#A timeout after the request was sent is treated like a crash" }
+  - phase: Settle by delivery class
+  - alt:
+      - when: verify
+        messages:
+          - { from: amb, to: courier, label: did you receive it, source: "../outbox-comparison.md#the ambassador asks the courier whether it received the operation id" }
+          - { reply: courier, label: yes or no }
+      - when: resend
+        messages:
+          - { from: amb, to: courier, label: same operation id, source: "../outbox-comparison.md#it sends the same operation id again" }
+          - { reply: courier, label: result }
+      - when: else
+        messages:
+          - { from: amb, to: amb, label: "stays unknown, owner settles", async: true, refused: true, source: "../outbox-comparison.md#With stop, it reports unknown and hands it to the owner" }
+  - phase: Close
+  - { from: amb, to: journal, label: record outcome, async: true, source: "../outbox-comparison.md#the ambassador records the outcome after the call" }
