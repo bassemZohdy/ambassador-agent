@@ -72,6 +72,7 @@ How an ambassador is run (stateless or durable, always on or on demand) is a dep
 | [Worked example](docs/example.md) | The pattern applied to one boundary through six scenarios, with no code |
 | [Protocol mapping](docs/protocol-mapping.md) | How the interaction model maps onto A2A as the reference protocol, the gaps, and a proposed Extension |
 | [Running replicas on Temporal](docs/on-temporal.md) | How the replica requirements map onto Temporal, and what it does not cover |
+| [A timeout that stays unknown](docs/diagrams/unknown-timeout.svg) | The same case as a numbered, animated sequence: the core asks, the ambassador journals and sends, no answer comes, the order is held and a retry is refused |
 | [Animation: the core agent and the ambassador](https://bassemzohdy.github.io/ambassador-agent/animations/core-and-ambassador.html) | One request, four endings: succeeded, rejected, and two timeouts. Plays on the Pages site; the source is [docs/animations](docs/animations/core-and-ambassador.html) |
 | [The outbox and the journal](docs/outbox-comparison.md) | How the transactional outbox works, drawn step by step, and how the journal differs from it |
 | [Influences](docs/influences.md) | What was taken from the outbox, saga, actor model, durable execution and others, and what was left out |

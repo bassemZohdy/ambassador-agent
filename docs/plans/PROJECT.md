@@ -87,3 +87,4 @@ Publish the Ambassador Agent as a design pattern that architects can read, judge
 - 2026-11-15 · outbox question · explained in docs/outbox-comparison.md with two animated diagrams (TASK-028); nothing in the pattern changed
 - 2026-11-15 · animation · core agent and ambassador page added under docs/animations (TASK-029); posting not possible from here, no social channel is connected
 - 2026-11-15 · posted the animation on LinkedIn and X; GitHub Pages enabled (main, /docs)
+- 2026-11-15 · media · archgram sequence diagram of the unknown timeout added (TASK-030); recorded as MP4 and GIF for the posts, not posted yet

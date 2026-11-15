@@ -1,0 +1,34 @@
+archgram: 1
+diagram: sequence
+title: A timeout that stays unknown
+description: >-
+  A core agent opens a task to book a courier. The ambassador journals
+  its intent and sends the command. When no answer comes back, the
+  outcome is unknown, the resource is held and no fallback is offered.
+  A retry under a new key is refused until a person settles it.
+participants:
+  - { id: core, kind: agent, label: Core agent, source: "../pattern.md#The core system talks to an ambassador through" }
+  - { id: amb, kind: agent, label: Ambassador, source: "../pattern.md#on each boundary and make it the only path across" }
+  - { id: journal, kind: database, label: Journal, source: "../pattern.md#Records intent and outcome for every crossing" }
+  - { id: courier, kind: service, label: Courier system, variant: external, source: "../pattern.md#many external systems you do not control" }
+messages:
+  - phase: Ask
+  - { from: core, to: amb, label: "book courier, key k-1042", source: "../pattern.md#Only the core opens a task" }
+  - { from: amb, to: amb, label: "policy, admission", async: true, source: "../pattern.md#Refuses a task before the boundary is crossed" }
+  - phase: Journal first, then act
+  - { from: amb, to: journal, label: "intent, op-1042", async: true, source: "../pattern.md#it records its intent" }
+  - { from: amb, to: courier, label: "command, op-1042", source: "../pattern.md#Before an ambassador acts on the external system" }
+  - alt:
+      - when: answer arrives
+        messages:
+          - { reply: courier, label: confirmed }
+          - { from: amb, to: journal, label: "outcome, succeeded", async: true, source: "../pattern.md#After, it records the outcome" }
+          - { reply: amb, label: succeeded, to: core }
+      - when: no answer
+        messages:
+          - { from: amb, to: amb, label: "timeout means unknown, hold order", async: true, refused: true, source: "../pattern.md#A timeout after a request was sent is `unknown`, never `failed`" }
+          - { from: amb, to: journal, label: "outcome, unknown", async: true, source: "../pattern.md#After, it records the outcome" }
+          - { reply: amb, label: "unknown, no fallback", to: core, refused: true, source: "../pattern.md#No fallback channel is offered, because the action may already have happened" }
+  - phase: A retry
+  - { from: core, to: amb, label: "retry, new key k-1043" }
+  - { reply: amb, label: "rejected, resource held", refused: true, source: "../pattern.md#is `rejected` with `resource_held`, not retryable" }
